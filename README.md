@@ -1,7 +1,7 @@
 # Gopherium docs
 
 The documentation site for the [Gopherium](https://github.com/gopherium)
-building blocks, published at [docs.gopherium.com](https://docs.gopherium.com).
+building blocks, published at [docs.gopherium.org](https://docs.gopherium.org).
 
 Built with [Astro Starlight](https://starlight.astro.build). Content
 lives in `src/content/docs/`, one Markdown file per page, with the
