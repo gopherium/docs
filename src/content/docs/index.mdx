@@ -1,0 +1,40 @@
+---
+title: Gopherium
+description: Composable Go and React building blocks, extracted from shipping products.
+template: splash
+hero:
+  tagline: Composable Go and React building blocks, extracted from shipping products. Adopt one brick or the whole shelf.
+  actions:
+    - text: Quickstart
+      link: /start/quickstart/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/gopherium
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## The shelf so far
+
+<CardGrid stagger>
+	<Card title="Authentication" icon="seti:lock">
+		A pure primitive, an HTTP transport, a Postgres store, a login rate
+		limiter, and a React client. Start with the
+		[overview](/authentication/overview/).
+	</Card>
+	<Card title="Framework-free by design" icon="seti:go">
+		Every brick works with the standard library. Routers, ORMs, and
+		frameworks stay your decision.
+	</Card>
+	<Card title="Battle-tested first" icon="approve-check">
+		Bricks are extracted from production code after they prove themselves,
+		never designed on a whiteboard.
+	</Card>
+	<Card title="Tested to the edge" icon="seti:code-search">
+		Each brick ships its own test doubles and harnesses, plus
+		[recipes](/testing/end-to-end/) for the scaffolding no package can
+		carry.
+	</Card>
+</CardGrid>
