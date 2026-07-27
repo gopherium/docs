@@ -34,7 +34,7 @@ describes code that runs in production today.
 
 ## What exists today
 
-Authentication is the first capability on the shelf:
+Two capabilities are on the shelf. Authentication is the larger one:
 
 | Brick | What it is |
 | --- | --- |
@@ -44,8 +44,15 @@ Authentication is the first capability on the shelf:
 | [`authkit/ratelimit`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/ratelimit) | Login rate limiting behind reverse proxies |
 | [`@gopherium/react-auth`](https://www.npmjs.com/package/@gopherium/react-auth) | The React client, from hooks to ready-made screens |
 
-Start with the [Authentication overview](/authentication/overview/),
-or jump straight to the [Quickstart](/start/quickstart/).
+Plugins are the second:
+
+| Brick | What it is |
+| --- | --- |
+| [`pluginkit`](https://pkg.go.dev/github.com/gopherium/pluginkit) | A compile-time plugin host, a wiring generator, and a route guard |
+
+Start with the [Authentication overview](/authentication/overview/) or
+the [Plugins overview](/plugins/overview/), or jump straight to the
+[Quickstart](/start/quickstart/).
 
 ## How these docs relate to the API reference
 

@@ -38,6 +38,14 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Plugins',
+					items: [
+						{ slug: 'plugins/overview' },
+						{ slug: 'plugins/host-lifecycle' },
+						{ slug: 'plugins/wiring-and-manifests' },
+					],
+				},
+				{
 					label: 'Testing',
 					items: [
 						{ slug: 'testing/end-to-end' },
