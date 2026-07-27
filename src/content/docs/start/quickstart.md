@@ -72,11 +72,12 @@ func main() {
 }
 ```
 
-Create the first account through the same primitives, typically as a
-subcommand of your binary:
+Create the first account as a subcommand of your binary.
+`RunCreateAdmin` is the whole subcommand: flags, migration, password
+prompt:
 
 ```go
-err := authkit.CreateAdmin(ctx, store, "you@example.com", "Your Name", os.Stdin, os.Stdout)
+err := authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdout)
 ```
 
 ## Frontend

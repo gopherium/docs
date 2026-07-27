@@ -51,17 +51,33 @@ timeout, and the logger are `ReaperConfig` fields with defaults.
 
 ## Bootstrapping the first admin
 
-Every fresh deployment faces the same chicken-and-egg: user creation
-sits behind a login. `CreateAdmin` is the answer, built for a
-subcommand of your binary:
+User creation sits behind a login, and a fresh database has no
+users. Three entry points, layered by convenience.
+
+`authkit.CreateAdmin` is the primitive. It prompts for a password on
+stdin, validates, and stores against any `gouncer.Store`:
 
 ```go
 err := authkit.CreateAdmin(ctx, store, email, name, os.Stdin, os.Stdout)
 ```
 
-It prompts for the password on stdin, validates through
-`gouncer.NewUser`, and stores the account. Because it is the app
-binary itself, it works with `docker compose exec` in a distroless
-image, with no shell and no extra tooling. The
+With `authkit/postgres`, `RunCreateAdmin` is the whole subcommand:
+the `-email` and `-name` flags, the pool, the auth-schema migration,
+then `CreateAdmin`:
+
+```go
+err := authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdout)
+```
+
+As the app binary itself, it works with `docker compose exec` in a
+distroless image. The
 [operations contract](/deployment/operations/#bootstrap-the-first-admin-through-the-binary)
 shows the deployment shape.
+
+`EnsureAdmin` is for seeders: the password is an argument, an
+existing email is a no-op, and the returned bool reports whether the
+account was created. Running it twice is safe:
+
+```go
+created, err := authkit.EnsureAdmin(ctx, store, email, name, password)
+```

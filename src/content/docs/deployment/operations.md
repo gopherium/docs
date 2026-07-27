@@ -50,8 +50,9 @@ proxy and the apps it fronts.
 
 ## Bootstrap the first admin through the binary
 
-`authkit.CreateAdmin` backs a subcommand of the app binary, reading
-the password as one line from stdin. It needs no shell and no extra
+`authkitpg.RunCreateAdmin` backs a subcommand of the app binary. It
+parses the account flags, migrates the auth schema, and reads the
+password as one line from stdin. It needs no shell and no extra
 tooling, so it works in distroless images:
 
 ```sh
@@ -60,7 +61,8 @@ docker compose exec myapp /myapp createadmin \
 ```
 
 Never bootstrap by inserting rows manually. The subcommand validates
-input, hashes the password, and migrates the auth schema first.
+input, hashes the password, and migrates the auth schema before it
+writes.
 
 ## Migrations compose, they never merge
 
