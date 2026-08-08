@@ -80,8 +80,10 @@ if err := appMigrate(ctx, databaseURL); err != nil {
 ```
 
 Two migration lineages sharing one version table corrupt each other.
-Any additional schema-owning module, such as a plugin, follows the
-same rule with its own table.
+Any other module that owns schema follows the same rule with its own
+table. Plugins are the common case, and the
+[host](/plugins/host-lifecycle/) runs their migrations for you,
+before any plugin starts.
 
 ## Knobs live in code, not in this document
 

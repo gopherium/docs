@@ -57,9 +57,9 @@ pinning React in your `package.json`:
 
 ```json
 {
-	"pnpm": {
-		"overrides": { "react": "^19.2.0", "react-dom": "^19.2.0" }
-	}
+  "pnpm": {
+    "overrides": { "react": "^19.2.0", "react-dom": "^19.2.0" }
+  }
 }
 ```
 

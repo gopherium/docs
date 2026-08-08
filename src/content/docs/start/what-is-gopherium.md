@@ -4,37 +4,47 @@ description: A set of composable Go and React building blocks that grow into a f
 ---
 
 Gopherium is a set of building blocks for products that pair a Go
-backend with a React frontend. The ambition is what a full-stack
-framework provides. The delivery is deliberately not a framework.
+backend with a React frontend. It aims to give you what a full-stack
+framework gives you, without being one.
 
 ## Bricks, not a framework
 
-Go culture rejects monolithic frameworks for good reasons, and the
-successful Go libraries all follow the same pattern: a focused module
-that does one thing, adopted independently, composed by the
-application. Gopherium follows that pattern on purpose. Each capability
-ships as a small, separately versioned module:
+Go developers tend to avoid large frameworks, and the Go libraries
+that succeed usually look the same: one module, one job, adopted on
+its own, and composed by the application that uses it. Gopherium
+follows that pattern deliberately. Each capability is a small module
+with its own version number.
 
-- The application owns its `main`, its router, and its wiring.
-- Every brick works against the standard library. None of them mounts
-  routes, owns configuration files, or dictates project layout.
-- Bricks compose through plain interfaces, so replacing one never
-  strands the others.
+In practice that means three things:
 
-The result reads like a framework in the documentation and like plain
-Go in the code.
+- Your application owns its `main`, its router, and its wiring. No
+  brick takes those over.
+- No brick mounts routes, reads configuration files, or expects a
+  particular project layout. The HTTP bricks hand you handlers and
+  middleware and let you decide the URLs.
+- Bricks talk to each other through ordinary Go interfaces, so
+  swapping one out does not strand the rest.
+
+The result reads like a framework in the documentation and like
+plain Go in your editor.
 
 ## Extracted, not designed
 
-Every brick starts its life inside a shipping product. It gets
-extracted only after real production use, and only when a second
-consumer exists to shape its public API. That discipline keeps the
-APIs honest: nothing here is speculative, and every guide on this site
-describes code that runs in production today.
+Every brick starts inside a real product. It only becomes a brick
+after it has run in production, and only once a second product needs
+it, because one consumer is not enough to tell a good API from a
+convenient one.
+
+That is a slow way to build a library, and it is the point. Nothing
+here was designed speculatively, and every guide on this site
+describes code that is running in production today.
 
 ## What exists today
 
-Two capabilities are on the shelf. Authentication is the larger one:
+Three capabilities are on the shelf.
+
+**[Authentication](/authentication/overview/)** is the largest, and
+is five modules so you can stop at whichever layer suits you:
 
 | Brick | What it is |
 | --- | --- |
@@ -44,21 +54,34 @@ Two capabilities are on the shelf. Authentication is the larger one:
 | [`authkit/ratelimit`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/ratelimit) | Login rate limiting behind reverse proxies |
 | [`@gopherium/react-auth`](https://www.npmjs.com/package/@gopherium/react-auth) | The React client, from hooks to ready-made screens |
 
-Plugins are the second:
+**[Plugins](/plugins/overview/)** lets you build an application out
+of compile-time plugins:
 
 | Brick | What it is |
 | --- | --- |
 | [`pluginkit`](https://pkg.go.dev/github.com/gopherium/pluginkit) | A compile-time plugin host, a wiring generator, and a route guard |
+| [`pluginkit/graphwire`](https://pkg.go.dev/github.com/gopherium/pluginkit/graphwire) | Generates a GraphQL resolver root so plugins can extend one graph |
 
-Start with the [Authentication overview](/authentication/overview/) or
-the [Plugins overview](/plugins/overview/), or jump straight to the
-[Quickstart](/start/quickstart/).
+**[Admin UI](/admin-ui/overview/)** is the React side of an admin
+application:
+
+| Brick | What it is |
+| --- | --- |
+| [`@gopherium/godmin`](https://www.npmjs.com/package/@gopherium/godmin) | The base layer for an admin app on the WordPress Design System |
+
+Pick whichever you need, or jump straight to the
+[Quickstart](/start/quickstart/), which builds a working login.
 
 ## How these docs relate to the API reference
 
-This site owns the narrative: what each brick is for, how the pieces
-compose, and the operational knowledge that no package can carry. The
-bricks' API reference lives where Go and npm developers expect it (i.e. on
-[pkg.go.dev](https://pkg.go.dev/github.com/gopherium/gouncer) and in
-each package's typed exports). When this site and a godoc disagree, the
-godoc wins, and we would like to hear about it.
+This site explains what each brick is for, how the pieces fit
+together, and the operational details that no package can carry
+inside itself.
+
+It is not the API reference. Function signatures and types live
+where Go and npm developers already look for them, on
+[pkg.go.dev](https://pkg.go.dev/github.com/gopherium/gouncer) for
+the Go modules and in each npm package's own types.
+
+If this site and the reference ever disagree, the reference is
+right, and we would like to hear about it.
