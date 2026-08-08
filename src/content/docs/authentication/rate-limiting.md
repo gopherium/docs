@@ -107,7 +107,7 @@ if err != nil {
 Deploying behind a proxy without setting this collapses every visitor
 into a single budget, and a handful of failed logins by anyone locks
 login for everyone. The
-[operations contract](/deployment/operations/#trust-your-proxy-or-lock-everyone-out)
+[operations contract](/deployment/operations/#2-tell-the-application-which-proxy-to-trust)
 shows how to make that misconfiguration fail loudly at deploy time,
-and the [E2E recipe](/testing/end-to-end/#quarantine-the-rate-limiter)
+and the [E2E recipe](/testing/end-to-end/#keep-the-rate-limiter-out-of-your-way)
 shows how to keep browser tests from tripping the limiter.

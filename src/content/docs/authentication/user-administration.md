@@ -100,7 +100,7 @@ err := authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdo
 
 As the app binary itself, it works with `docker compose exec` in a
 distroless image. The
-[operations contract](/deployment/operations/#bootstrap-the-first-admin-through-the-binary)
+[operations contract](/deployment/operations/#3-create-the-first-admin-with-the-binary)
 shows the deployment shape.
 
 `EnsureAdmin` is for seeders: the password is an argument, an
