@@ -3,8 +3,8 @@ title: The host and its lifecycle
 description: How the host migrates, starts, guards, and stops a fixed set of plugins.
 ---
 
-The host brings plugins up in a safe order, exposes what they
-declare, and shuts them down:
+The host starts your plugins in a safe order, gives you what they
+declare, and shuts them down again:
 
 ```go
 host := pluginkit.NewHost(registered...)
@@ -14,19 +14,23 @@ if err := host.Start(ctx); err != nil {
 defer host.Stop(ctx)
 ```
 
-`NewHost` panics on a duplicate plugin id. That is a wiring mistake,
-caught at construction.
+`NewHost` panics if two plugins share an id. That is a wiring
+mistake rather than a runtime condition, so it fails immediately at
+startup instead of misbehaving later.
 
 ## Start
 
-Four guarantees, in order:
+`Start` gives you four guarantees:
 
-- Every `Migrator` runs before any plugin starts.
-- Plugins start in registration order.
-- A failed start stops the already-started plugins in reverse order
-  and returns the failure with any stop errors joined.
-- A panicking plugin becomes an error tagged with its id and
-  operation. It cannot crash the host.
+- Every database migration runs before any plugin starts, so no
+  plugin ever runs against a schema that is not ready.
+- Plugins start in the order they were registered.
+- If one fails to start, the host stops the ones already started, in
+  reverse order, then returns the original failure along with any
+  errors from stopping. You never end up half started.
+- If a plugin panics, the host turns it into an ordinary error
+  naming the plugin and what it was doing. One bad plugin cannot
+  bring down the process.
 
 ## Seed
 
@@ -52,13 +56,16 @@ routes := host.Routes()      // map[string]http.Handler
 public := host.PublicPaths() // map[string][]string
 ```
 
-Both are keyed by plugin id and carry only the plugins that declare
-them. Mounting is yours.
+Both maps are keyed by plugin id, and only contain the plugins that
+declare them. The host does not mount anything itself, so you stay
+in charge of your router and your URL layout.
 
 ## Guarding a namespace
 
-`Protect` serves a plugin's declared public paths raw and passes
-everything else through your middleware:
+Most plugin routes should require a login, but a few, such as an
+incoming webhook, cannot have one. `Protect` wraps a plugin's
+routes in your authentication middleware while letting its declared
+public paths through:
 
 ```go
 for id, handler := range host.Routes() {
@@ -68,14 +75,26 @@ for id, handler := range host.Routes() {
 }
 ```
 
-Matching is exact and method-agnostic. Public paths are
-namespace-relative, `/webhook` rather than the full URL, because
-`StripPrefix` runs first. Any `func(http.Handler) http.Handler`
-works as the middleware. Above it is `RequireSession` from
+Three things to know about the matching:
+
+- A public path must match exactly. There is no prefix or wildcard
+  matching, so nothing is accidentally exposed.
+- A match applies to every HTTP method.
+- Public paths are written relative to the plugin's namespace, so
+  `/webhook` and not the full URL. That is because `StripPrefix`
+  has already removed the prefix by the time `Protect` sees the
+  request.
+
+The middleware is any `func(http.Handler) http.Handler`. The
+example above uses `RequireSession` from
 [authkit](/authentication/sessions-over-http/).
 
 ## Stop
 
-Reverse registration order, continuing past failures, all errors
-joined. Call it before closing the resources your plugins use, in
-both your shutdown path and your serve-error path.
+`Stop` shuts plugins down in reverse registration order. If one
+fails it keeps going and returns every error together, so a single
+bad shutdown never leaves the rest running.
+
+Call it before you close anything your plugins use, such as your
+database pool. Call it on both paths out of your program: the
+normal shutdown, and the one where your server returned an error.

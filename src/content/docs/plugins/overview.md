@@ -3,17 +3,27 @@ title: Overview
 description: Compile-time plugins with a lifecycle host, a wiring generator, and route guarding, all framework-free.
 ---
 
-`pluginkit` runs a fixed set of compile-time plugins: ordinary Go
-packages linked into your binary, each owning its own routes and
-database schema. It ships the host that starts and stops them, the
-generator that wires them in, and the guard that protects their
-routes.
+`pluginkit` lets you build an application out of plugins, where a
+plugin is an ordinary Go package compiled into your binary. Each one
+can own its own HTTP routes and its own database tables.
+
+These are compile-time plugins, not downloadable ones. Nothing is
+loaded at runtime, so the compiler checks every plugin and there is
+no dynamic loading to go wrong. Adding or removing a plugin means
+rebuilding.
+
+pluginkit ships three things: the host that starts and stops your
+plugins, the generator that wires them in, and the guard that
+protects their routes.
 
 ## One required interface, four optional capabilities
 
-A plugin implements `Plugin`: an `ID`, a `Start`, and a `Stop`.
-Everything else is an optional capability the host discovers by type
-assertion:
+Every plugin implements `Plugin`, which is three methods: `ID`,
+`Start` and `Stop`.
+
+Everything beyond that is optional. A plugin implements the extra
+interface only if it needs it, and the host finds out at runtime by
+checking whether the plugin satisfies it:
 
 - `Migrator` for plugins that own database schema, migrated before
   anything starts.
@@ -24,15 +34,20 @@ assertion:
 - `PublicPathProvider` for endpoints that must answer without a
   login, such as a signed webhook.
 
-Signatures live on
+A plugin that serves a GraphQL API has a fifth option, described
+under [GraphQL plugins](/plugins/graphql-plugins/). It is a separate
+module, so applications without a graph never pull it in.
+
+The exact signatures are on
 [pkg.go.dev](https://pkg.go.dev/github.com/gopherium/pluginkit).
 
-## Share the mechanism, never the seam
+## Your application owns the seam
 
-pluginkit depends only on the standard library and never sees your
-domain. Your app owns the seam: a thin SDK package that re-exports
-the lifecycle contract as type aliases and defines what plugins
-receive:
+pluginkit depends only on the standard library, and it knows nothing
+about your domain. So plugins do not import pluginkit directly.
+Instead your application writes a small SDK package that re-exports
+pluginkit's interfaces as type aliases, and defines what a plugin
+receives when it starts:
 
 ```go
 package sdk
@@ -48,14 +63,16 @@ type Deps struct {
 }
 ```
 
-Aliases are identical types, so plugins import only your SDK and
-still satisfy the host. `Deps` carries your domain services and
-stays yours.
+A Go type alias is the same type under a second name, not a copy. So
+a plugin written against your SDK satisfies the host without ever
+importing pluginkit. `Deps` is entirely yours: put your database
+URL, your services, whatever plugins need.
 
 ## Where it sits
 
-A sibling brick to [authentication](/authentication/overview/),
-extracted from production the same way, with zero third-party
-dependencies. Continue with the
-[host lifecycle](/plugins/host-lifecycle/) and the
-[wiring generator](/plugins/wiring-and-manifests/).
+pluginkit is a sibling of [authentication](/authentication/overview/),
+extracted from a working product the same way, and it has no
+third-party dependencies.
+
+Read on with the [host lifecycle](/plugins/host-lifecycle/), then
+the [wiring generator](/plugins/wiring-and-manifests/).

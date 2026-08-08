@@ -43,6 +43,7 @@ export default defineConfig({
 						{ slug: 'plugins/overview' },
 						{ slug: 'plugins/host-lifecycle' },
 						{ slug: 'plugins/wiring-and-manifests' },
+						{ slug: 'plugins/graphql-plugins' },
 					],
 				},
 				{
