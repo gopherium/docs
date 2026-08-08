@@ -1,14 +1,17 @@
 ---
 title: Persistence
-description: The Postgres store, the schema it owns, and how its migrations compose with yours.
+description: The PostgreSQL store, the database schema it owns, and how its migrations sit beside yours.
 ---
 
-[`authkit/postgres`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/postgres)
-persists users and sessions in PostgreSQL. Its design goal is to be a
-guest in your database without ever being a roommate: everything it
-owns lives in a schema of its own, including its migration history.
+`authkit/postgres` stores users and sessions in PostgreSQL, so you do
+not have to write that layer yourself.
 
-## Wiring
+Its main design goal is to be a guest in your database rather than a
+roommate. Everything it owns lives in a separate schema called `auth`,
+including the record of which migrations have run. It never touches
+your tables and never shares your migration history.
+
+## Wiring it up
 
 ```go
 if err := authkitpg.Migrate(ctx, databaseURL); err != nil {
@@ -21,16 +24,21 @@ if err != nil {
 store := authkitpg.NewUserStore(pool)
 ```
 
-`NewUserStore` satisfies `gouncer.Store`, `authkit.AdminStore`, and
-`authkit.SessionReaper`, so one value feeds the handlers, the admin
-surface, and the reaper.
+`Migrate` creates or updates the `auth` schema. `NewUserStore` then
+gives you one value that satisfies three different interfaces:
+`gouncer.Store`, `authkit.AdminStore` and `authkit.SessionReaper`. So
+the same `store` feeds the login handlers, the
+[admin surface](/authentication/user-administration/) and the session
+cleanup, with no extra wiring.
 
-## The schema-ownership rule
+## Keep migrations separate
 
-`Migrate` creates and evolves the `auth` schema: `auth.users`,
-`auth.sessions`, their indexes, and, crucially, its own goose version
-table at `auth.goose_db_version`. Your application's migrations keep
-their own version table. On every start, run both migrators, the
+`Migrate` owns the `auth` schema: the `auth.users` and `auth.sessions`
+tables, their indexes, and its own record of applied migrations in
+`auth.goose_db_version`.
+
+That last part is the important one. Your application keeps its own
+migration record in its own table. Run both migrators at startup, the
 library's first:
 
 ```go
@@ -42,32 +50,42 @@ if err := appMigrate(ctx, databaseURL); err != nil {
 }
 ```
 
-Two migration lineages sharing one version table corrupt each other's
-history. Separate tables make the module droppable into any database,
-regardless of what migration numbering the application already uses.
-The same rule generalizes: any schema-owning module you write should
-migrate against its own version table.
+Why it matters: a migration tool records which migrations it has
+already applied. Point two different sets of migrations at one record
+table and each will misread the other's entries as its own, and both
+histories are then corrupt.
 
-## Semantics the store guarantees
+Keeping them apart also means this module drops into any database
+whatever numbering your migrations already use. The same rule is worth
+following for any module of yours that owns tables, including
+[plugins](/plugins/host-lifecycle/).
 
-- Duplicate emails surface as `gouncer.ErrEmailTaken`, mapped from the
-  unique violation inside the store.
-- Session lookup joins the user and refuses expired sessions and
-  disabled users at the query level.
-- `SetUserDisabled` flags the account and deletes its sessions in one
-  transaction.
-- `DeleteExpiredSessions` returns the reaped count and is backed by an
-  index on the expiry column, so sweeps never scan the table.
-- Case-insensitive email uniqueness holds through gouncer's
-  normalization. Every writer goes through `gouncer.NewUser`, which
-  lowercases before storage.
+## What the store guarantees
 
-## Testing against the real thing
+- A duplicate email comes back as `gouncer.ErrEmailTaken`. The store
+  translates the database's unique constraint violation for you.
+- Looking up a session joins the user and rejects expired sessions and
+  disabled users in the query itself, so a stale session can never
+  slip through in application code.
+- `SetUserDisabled` sets the flag and deletes that account's sessions
+  in a single transaction. Either both happen or neither does.
+- `DeleteExpiredSessions` returns how many rows it removed, and uses
+  an index on the expiry column, so cleanup never scans the whole
+  table.
+- Email uniqueness ignores case. Every write goes through
+  `gouncer.NewUser`, which lowercases first.
+
+## Testing against a real database
 
 The module ships a
 [`testdb`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/postgres/testdb)
-package wiring [pgtestdb](https://github.com/peterldowns/pgtestdb):
-each test gets a fresh database migrated through the module's own
-`Migrate`, so test databases match production ones by construction.
-Consumers can use the same migrator for their own store tests that
-need the auth schema present.
+package built on
+[pgtestdb](https://github.com/peterldowns/pgtestdb). Every test gets
+its own fresh database, migrated with the module's own `Migrate`.
+
+That last detail is the point: your test databases are built the same
+way production is, so a migration that would break production breaks
+your tests first.
+
+You can use the same helper for your own tests that need the `auth`
+schema to exist.

@@ -1,19 +1,29 @@
 ---
 title: End-to-end auth testing
-description: Testing cookie-session authentication with Playwright against a real binary.
+description: Testing a real login with Playwright against a real binary, and the traps that make those tests flaky.
 ---
-How to test cookie-session authentication end to end with Playwright
-against a real binary built on `authkit` and `@gopherium/react-auth`.
-These patterns come from the first consumer. The scaffolding must be
-re-typed per app, so this recipe records the parts that are easy to
-get silently wrong.
 
-Placeholders: the app is `myapp`, its env prefix is `MYAPP_`.
+End-to-end tests drive a real browser against your real application.
+For anything behind a login, that means every test needs a session,
+which is where most of the difficulty lives.
 
-## One login, shared by every spec
+This page is a recipe for testing cookie-session authentication with
+Playwright, against an application built on `authkit` and
+`@gopherium/react-auth`. It comes from the first application to do it.
+The setup has to be written per application, so what follows
+concentrates on the parts that are easy to get silently wrong.
 
-Log in through the real UI exactly once, in a Playwright setup project,
-and save the session for every authenticated spec:
+Throughout, the application is called `myapp` and its environment
+variables start with `MYAPP_`.
+
+## Log in once, share it everywhere
+
+Logging in at the start of every test means driving a real form, a
+real round trip and a real password hash, over and over. Instead, log
+in once through the real interface, save the browser's session, and
+let every other test start already logged in.
+
+Playwright calls this a setup project:
 
 ```ts
 // tests/auth.setup.ts
@@ -30,11 +40,13 @@ setup('logs in and stores the session', async ({ page }) => {
 })
 ```
 
-The Email, Password, and Log in selectors target the shared
-`LoginScreen` from `@gopherium/react-auth/wpds`, so they transfer
-between apps unchanged. The post-login assertion is the app-specific
-line. Wire the projects so the setup runs first and everything else
-inherits the saved state:
+The Email, Password and Log in selectors match the shared
+`LoginScreen` from `@gopherium/react-auth/wpds`, so they work
+unchanged in any application using it. Only the line checking what
+appears after login is yours.
+
+Then tell Playwright to run that first and have everything else reuse
+the saved state:
 
 ```ts
 // playwright.config.ts
@@ -55,17 +67,22 @@ webServer: {
 },
 ```
 
-A saved storageState contains a live session cookie. It is a
-credential. Keep its directory out of version control:
+That saved file holds a live session cookie, which makes it a real
+credential. Keep its whole directory out of version control by adding
+this line to your `.gitignore`:
 
-```gitignore
+```text
 .auth/
 ```
 
-## Quarantine the rate limiter
+## Keep the rate limiter out of your way
 
-Every Playwright browser shares one IP, and the login limiter budgets
-failed attempts per IP. Two consequences:
+Every Playwright browser comes from the same IP address, and the login
+limiter counts failed attempts per IP. Run tests in parallel and they
+share one budget, so tests start failing for reasons unrelated to what
+they test.
+
+Run them one at a time:
 
 ```ts
 // playwright.config.ts
@@ -73,10 +90,13 @@ fullyParallel: false,
 workers: 1,
 ```
 
-Successful logins never consume budget, only 401 responses do. Keep
-exactly one deliberately-failing login spec, and make it fail on the
-password rather than the email, so it exercises password verification
-instead of a lookup miss:
+Successful logins cost nothing, since only `401` responses count
+against the budget. So keep exactly one test that logs in wrongly on
+purpose.
+
+Make that test fail on the password rather than the email. A wrong
+password exercises the real password check, while an unknown email
+only exercises a failed lookup:
 
 ```ts
 // tests/login-invalid.spec.ts
@@ -93,23 +113,26 @@ test('rejects a wrong password without starting a session', async ({ page }) => 
 })
 ```
 
-## Specs that must own their session
+## Tests that need their own session
 
-Logout deletes the session row server side. A logout spec that reuses
-the shared storageState revokes the token every later spec depends on.
-Opt out of the shared state and log in fresh inside the spec:
+Logging out deletes the session on the server. So a logout test using
+the shared session destroys the session every later test depends on,
+and the rest of your suite fails.
+
+Any test that ends a session must opt out of the shared state and log
+in for itself:
 
 ```ts
 // tests/logout.spec.ts
 test.use({ storageState: { cookies: [], origins: [] } })
 ```
 
-## Proving revocation with a second context
+## Proving that disabling an account kills its sessions
 
-The strongest auth spec drives disable-revokes-live-sessions through
-two browsers: the admin uses the shared state, the victim logs in
-inside a fresh context, the admin disables the account, and the
-victim's next reload lands on the login screen.
+The most valuable auth test uses two browsers at once. The admin uses
+the shared session. The victim logs in separately. The admin disables
+the victim's account, and the victim's next page load lands back on
+the login screen.
 
 ```ts
 // tests/users-disable.spec.ts
@@ -118,18 +141,19 @@ const victim = await browser.newContext({
 })
 ```
 
-Passing `storageState` explicitly matters. A context created without
-it would inherit the admin's session and prove nothing.
+Passing `storageState` explicitly is what makes this test real. A new
+context created without it inherits the admin's session, and the test
+would then prove nothing.
 
-## Seed the admin through the binary
+## Seeding the admin account
 
-Use an isolated database so resets never touch development data, and
-seed through the same subcommand production uses:
+Use a separate database so resetting it never touches your development
+data, and create the account with the same subcommand production uses:
 
 ```make
 E2E_DATABASE_URL ?= postgres://postgres:postgres@localhost:5434/myapp_e2e?sslmode=disable
 E2E_EMAIL ?= e2e@example.com
-E2E_NAME ?= Grace Hopper
+E2E_NAME ?= Maria Perez
 E2E_PASSWORD ?= correct horse battery
 
 e2e-db-reset:
@@ -143,21 +167,23 @@ e2e-seed: build
 		./myapp createadmin -email "$(E2E_EMAIL)" -name "$(E2E_NAME)"
 ```
 
-The credential defaults end up in three places: the test env module,
-the Makefile, and any CI overrides. Nothing enforces their equality.
-Keep the defaults byte-identical and override only through env vars.
+Those credentials appear in three places: the test environment module,
+the Makefile, and any CI overrides. Nothing checks that they agree.
+Keep the defaults character for character identical and change them
+only through environment variables.
 
-## Facts worth knowing
+## Things worth knowing
 
-- The suite runs against plain `http://localhost`, yet the `Secure`
-  `__Host-` cookie works. Browsers treat localhost as a trustworthy
-  origin. No insecure-cookie flag is needed, in tests or anywhere.
-- Signed public paths, such as webhook endpoints a plugin declares,
-  are the one exception to cookie auth. Their specs authenticate with
-  the upstream signature scheme instead of a storageState.
-- If the app loads a dotenv file on start, have the E2E serve target
-  neuter outbound integrations with dead endpoints, or a local run
-  will use live secrets.
+- The suite runs against plain `http://localhost` and the `Secure`
+  `__Host-` cookie still works, because browsers treat localhost as
+  trustworthy. You never need an insecure-cookie setting, in tests or
+  anywhere else.
+- Signed public endpoints, such as a webhook a plugin declares, are
+  the exception to cookie authentication. Their tests authenticate
+  with the upstream signature instead of a saved session.
+- If your application reads a dotenv file at startup, make the
+  end-to-end serve target point outbound integrations at dead
+  endpoints. Otherwise a local run uses live credentials.
 
 ## The CI job
 
@@ -176,6 +202,6 @@ e2e:
         path: test/e2e/playwright-report
 ```
 
-Start the database the same way developers do, with the repo's compose
-file, rather than a CI service block. Dev and CI then share one
-environment description.
+Start the database the way developers do, with the repository's
+compose file, rather than a CI service block. Then there is one
+description of the environment instead of two that can drift.

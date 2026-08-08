@@ -1,74 +1,91 @@
 ---
 title: Operations contract
-description: What every deployment of an authkit app must provide.
+description: What every deployment of an authkit application has to provide, and what breaks if it does not.
 ---
-What every deployment of an app built on `authkit` must provide. Each
-point is load-bearing. Skipping one does not fail loudly at deploy
-time, it degrades security or availability later.
 
-Placeholders: the app is `myapp`, its env prefix is `MYAPP_`.
+Four things every deployment of an `authkit` application must get
+right.
 
-## TLS in front is mandatory
+None of them fails at deploy time. Your deploy goes green and the
+problem appears later, as a security weakness or as users unable to
+log in. That is why they are collected here rather than left to be
+discovered.
 
-The session cookie carries the `__Host-` prefix, so browsers accept it
-only over HTTPS. Without TLS termination in front of the app, nobody
-can log in at all. Any TLS-terminating proxy works. The app itself
-speaks plain HTTP on its internal network.
+Throughout, the application is called `myapp` and its environment
+variables start with `MYAPP_`.
 
-The single exception is localhost, where browsers accept Secure
-cookies over plain HTTP. Development and E2E runs need no TLS and no
-insecure-cookie flag.
+## 1. TLS in front is mandatory
 
-## Trust your proxy, or lock everyone out
+The session cookie uses the `__Host-` prefix, and browsers only accept
+such a cookie over HTTPS. Without HTTPS in front of your application,
+**nobody can log in at all**, because the browser silently discards
+the cookie.
 
-The login rate limiter counts failed attempts per client IP taken from
-`X-Forwarded-For`, and it honors that header only from configured
-trusted proxies. Undeployed, every visitor arrives from the proxy's
-address and shares one budget: a handful of failed logins by anyone
-locks out login for everyone.
+Any TLS-terminating proxy will do. The application itself speaks plain
+HTTP on your internal network, so it needs no certificate of its own.
 
-Set the proxy's network range in the app configuration, feeding
-`ratelimit.Config.TrustedProxies` through `ParseTrustedProxies`. For a
-proxy on a shared container network, find the subnet with:
+There is one exception: browsers accept secure cookies over plain HTTP
+on `localhost`. Development and end-to-end runs therefore need no TLS
+and no special insecure-cookie setting.
+
+## 2. Tell the application which proxy to trust
+
+The login rate limiter counts failed attempts per client IP. Behind a
+proxy, every request arrives from the proxy's own address, so the real
+client address comes from the `X-Forwarded-For` header. Since anyone
+can write that header, it is trusted only from proxy addresses you
+name.
+
+If you name none, every visitor looks like the proxy and they all
+share one budget. A handful of failed logins by one person then locks
+out login **for everybody**.
+
+Set your proxy's network range in the application config, which passes
+it through `ParseTrustedProxies` into `ratelimit.Config.TrustedProxies`.
+For a proxy on a shared container network, find the subnet with:
 
 ```sh
 docker network inspect <proxy-network> \
   -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
 ```
 
-Make the deployment fail loudly when the value is missing instead of
-degrading silently:
+Make a missing value stop the deployment rather than degrade it
+quietly:
 
 ```yaml
 environment:
   MYAPP_TRUSTED_PROXIES: "${MYAPP_TRUSTED_PROXIES:?set to the proxy network subnet}"
 ```
 
-Trusting a range means trusting every workload inside it to write
-`X-Forwarded-For` honestly. Keep the proxy network limited to the
-proxy and the apps it fronts.
+One caution: trusting a range means trusting everything running inside
+it to report `X-Forwarded-For` honestly. Keep that network limited to
+the proxy and the applications it fronts.
 
-## Bootstrap the first admin through the binary
+## 3. Create the first admin with the binary
 
-`authkitpg.RunCreateAdmin` backs a subcommand of the app binary. It
-parses the account flags, migrates the auth schema, and reads the
-password as one line from stdin. It needs no shell and no extra
-tooling, so it works in distroless images:
+A fresh database has no users, and creating a user requires being
+logged in. `authkitpg.RunCreateAdmin` backs a subcommand of your own
+binary to break that circle. It parses the account flags, migrates the
+auth schema, and reads the password as a single line from stdin.
+
+It needs no shell and no extra tooling, so it works even in a
+distroless image:
 
 ```sh
 docker compose exec myapp /myapp createadmin \
-  -email you@example.com -name "Your Name"
+  -email admin@example.com -name "Maria Perez"
 ```
 
-Never bootstrap by inserting rows manually. The subcommand validates
-input, hashes the password, and migrates the auth schema before it
-writes.
+Never create that first account by inserting database rows by hand.
+The subcommand validates the input, hashes the password properly, and
+makes sure the schema exists before it writes.
 
-## Migrations compose, they never merge
+## 4. Run both migrators, library first
 
-`authkit/postgres` owns the `auth` schema and records its lineage in
-its own `auth.goose_db_version` table. The app's migrations keep their
-own table. On every start, run both migrators, the library's first:
+`authkit/postgres` owns the `auth` schema and tracks which of its
+migrations have run in its own `auth.goose_db_version` table. Your
+application tracks its own in a separate table. Run both at every
+start, the library's first:
 
 ```go
 if err := authkitpg.Migrate(ctx, databaseURL); err != nil {
@@ -79,16 +96,21 @@ if err := appMigrate(ctx, databaseURL); err != nil {
 }
 ```
 
-Two migration lineages sharing one version table corrupt each other.
-Any other module that owns schema follows the same rule with its own
-table. Plugins are the common case, and the
-[host](/plugins/host-lifecycle/) runs their migrations for you,
-before any plugin starts.
+Two sets of migrations sharing one tracking table will each misread
+the other's entries as their own, and corrupt both histories.
 
-## Knobs live in code, not in this document
+Any other module that owns database tables follows the same rule with
+its own table. Plugins are the common case, and the
+[host](/plugins/host-lifecycle/) runs their migrations for you before
+any plugin starts.
 
-Session lifetime, cookie name, sweep cadence, and the rate budget are
-fields on `authkit.Config`, `authkit.ReaperConfig`, and
-`ratelimit.Config`. Their documentation and defaults live with the
-code. Bind them to env vars in the app, and give each product its own
-cookie name in the `__Host-myapp_session` shape.
+## Settings are documented in the code
+
+Session lifetime, cookie name, cleanup interval and the rate limit
+budget are fields on `authkit.Config`, `authkit.ReaperConfig` and
+`ratelimit.Config`. Their defaults and descriptions live with the
+code, which is the only place that cannot drift.
+
+Bind them to environment variables in your application, and give each
+product its own cookie name following the `__Host-myapp_session`
+shape.

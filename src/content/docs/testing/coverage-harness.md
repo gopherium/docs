@@ -1,27 +1,38 @@
 ---
 title: Coverage harness
-description: Counting main() and CLI subcommands toward coverage with GOCOVERDIR.
+description: Making main() and CLI subcommands count toward your Go test coverage.
 ---
-How to make `main()` and CLI subcommands count toward test coverage
-using Go's binary coverage instrumentation. Without this, a
-100%-coverage discipline silently excludes the entrypoint, flag
-parsing, and process-level failure paths, and a CI copied from another
-project loses the numbers without anyone noticing.
 
-Placeholders: the app is `myapp`, its env prefix is `MYAPP_`.
+Ordinary Go tests never run your `main()`. So if you aim for 100%
+coverage, the numbers quietly leave out your entry point, your flag
+parsing, and the paths where the process fails to start. Those are
+worth covering, since they are exactly the places a bad deploy shows
+up.
 
-## The idea
+This page shows how to include them, using Go's binary coverage
+support. It is also worth setting up because a CI config copied from
+another project will drop these numbers without anyone noticing.
 
-`go build -cover` produces a binary that writes coverage counters into
-the directory named by `GOCOVERDIR`. Exec-style tests run that real
-binary as a child process, and `go tool covdata` merges the counters
-with the ordinary unit-test profile into one number that includes
-`main()`.
+Throughout, the application is called `myapp` and its environment
+variables start with `MYAPP_`.
+
+## How it works
+
+Three pieces:
+
+1. `go build -cover` produces a binary that records coverage as it
+   runs. It writes counters into whatever directory the `GOCOVERDIR`
+   environment variable names.
+2. Your tests run that real binary as a child process, so the code in
+   `main()` genuinely executes.
+3. `go tool covdata` merges those counters with the ordinary unit test
+   results, giving one number that includes `main()`.
 
 ## The test helper
 
-Exec tests skip unless the harness drives them, so a plain
-`go test ./...` stays fast and environment-free:
+Tests that run the binary should only do so when the harness set them
+up. Otherwise a plain `go test ./...` would need a built binary and
+extra environment, and would be slow and fragile:
 
 ```go
 // coverBinary returns the instrumented binary path and a child
@@ -43,9 +54,11 @@ func coverBinary(t *testing.T) (string, []string) {
 }
 ```
 
-Stripping the app's own env vars from the child matters. A developer's
-shell exports must not leak into a test that asserts missing-config
-failures.
+Notice the loop removing every `MYAPP_` variable from the child's
+environment. That is deliberate. If a developer has the application's
+config exported in their shell, it would leak into the child process,
+and a test checking that missing config fails would pass for the wrong
+reason.
 
 ## The Makefile target
 
@@ -63,14 +76,24 @@ cover:
 	go tool cover -func=covdata/total.out | tail -1
 ```
 
-Scoping matters twice. The binary build uses `-coverpkg=./cmd/...` so
-counters attribute to the command packages, and the unit profile
-excludes generated code so the gate measures only hand-written lines.
+Two of those flags decide whether the number means anything:
 
-## The local and CI split
+- `-coverpkg=./cmd/...` on the build narrows what the binary reports
+  on to your command packages. Without it Go instruments every package
+  in the main module, so the binary's numbers overlap the unit
+  profile's instead of adding the part it was built to measure.
+- `COVERPKGS` excludes generated code from the unit profile, so the
+  number measures code you actually wrote.
 
-CI usually runs the plain unit profile, fast and dependency-light. The
-merged number including `main()` is the local `make cover` target, run
-before handing work back. If CI should enforce the full number, give
-it a dedicated job running the same target. Document which one gates,
-so a green check is never mistaken for the stronger claim.
+## Local and CI
+
+These are usually split:
+
+- **CI** runs the plain unit profile. It is fast and needs nothing
+  extra installed.
+- **Locally**, `make cover` gives you the merged number including
+  `main()`, which is the one to check before handing work over.
+
+If you want CI to enforce the full number, give it its own job running
+the same target. Whichever you choose, write down which one is the
+gate. Otherwise a green check gets read as the stronger claim.
