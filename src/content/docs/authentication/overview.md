@@ -49,8 +49,12 @@ per-IP meaningful behind a proxy.
 
 **[`@gopherium/react-auth`](https://www.npmjs.com/package/@gopherium/react-auth)**
 is the browser side: a session-aware gate, hooks, typed errors, a
-WordPress-Design-System skin, an admin UI, and an msw-based
+WordPress Design System skin, an admin UI, and a
 [test harness](/authentication/react-integration/#testing-components-that-authenticate).
+Its backend calls run through a
+[replaceable transport](/authentication/react-integration/#talking-to-a-backend-that-is-not-rest),
+so an application serving GraphQL keeps the screens and swaps the
+requests underneath them.
 
 ## Adopt what you need
 
