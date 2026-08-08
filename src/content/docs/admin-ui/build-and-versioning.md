@@ -34,6 +34,12 @@ export default defineConfig({
 })
 ```
 
+:::note
+`@gopherium/godmin/vite` also exports
+[`godminStylesheetFirst`](#paint-sooner-on-a-cold-load), which is about page
+speed rather than correctness.
+:::
+
 - `godminDedupe` lists the packages that must stay single: `react`,
   `react-dom`, `@wordpress/element`, `@wordpress/theme`,
   `@wordpress/ui` and `@gopherium/react-auth`. Spreading it into
@@ -71,6 +77,40 @@ pinning React in your `package.json`:
   }
 }
 ```
+
+## Paint sooner on a cold load
+
+Bundlers write the stylesheet link into the page after the module script and
+its preloads. A stylesheet in the head blocks rendering, so nothing appears
+until it arrives, and because it was requested last it waits behind
+JavaScript that the first paint does not need.
+
+`godminStylesheetFirst` moves the stylesheet above the script, so the browser
+asks for it first:
+
+```ts
+import { godminSingleCopy, godminStylesheetFirst } from '@gopherium/godmin/vite'
+
+export default defineConfig({
+	plugins: [godminSingleCopy(), godminStylesheetFirst()],
+})
+```
+
+Measured on one admin application, throttled to a slow connection, the
+stylesheet went from waiting 570ms for a free connection to waiting 2ms, and
+first paint moved from 1888ms to 1276ms.
+
+The gain is largest when your page carries something worth painting early,
+such as a placeholder in the root element, since that content can then appear
+while the application code is still downloading.
+
+A priority hint is not a substitute here. Browsers already fetch a
+render-blocking stylesheet at the highest priority, so `fetchpriority="high"`
+measured within a millisecond of no change. The problem is the order the
+request is made in, not the weight it is given.
+
+`hoistStylesheet` is the underlying transform, exported for a bundler whose
+plugin shape differs from Vite's.
 
 ## The React 19 patch
 
