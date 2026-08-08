@@ -35,14 +35,23 @@ export default defineConfig({
 ```
 
 - `godminDedupe` lists the packages that must stay single: `react`,
-  `react-dom`, `@wordpress/element`, `@wordpress/theme` and
-  `@wordpress/ui`. Spreading it into `resolve.dedupe` makes Vite
-  always pick one copy of each. It is plain data because Vite only
-  reads this setting from your own config file.
+  `react-dom`, `@wordpress/element`, `@wordpress/theme`,
+  `@wordpress/ui` and `@gopherium/react-auth`. Spreading it into
+  `resolve.dedupe` makes Vite always pick one copy of each. It is
+  plain data because Vite only reads this setting from your own config
+  file.
 - `godminSingleCopy()` is the safety net. At the end of the build
-  it checks that each of those five packages resolved to one place,
+  it checks that each of those six packages resolved to one place,
   and fails the build naming the package and every copy it found.
   Packages outside the list are not checked.
+
+`@gopherium/react-auth` is on the list for the same reason as
+`@wordpress/theme`: it fails quietly rather than loudly. Its
+[configured transport](/authentication/react-integration/#one-setting-for-the-whole-module)
+is module state, so a second copy keeps its own and carries on calling
+REST while you believe you replaced it. An application that does not
+use it is unaffected, since both the dedupe setting and the check skip
+packages that are not installed.
 
 On a bundler that is not Vite or Rollup the plugin does not fit,
 but the check itself is exported as
