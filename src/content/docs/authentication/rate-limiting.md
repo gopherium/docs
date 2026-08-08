@@ -31,10 +31,12 @@ attacker produces. Over budget, the middleware answers `429` with a
 
 ## Limiting without the middleware
 
-The middleware only recognizes a failure by its `401`, which needs a
-response to inspect. A GraphQL endpoint answers `200` for a failed
-login, and a CLI has no response at all. `Limiter` is the same budget,
-same windows, and same retry values behind a key you choose:
+The middleware counts a failed login by watching a `401` response go
+past, which only works when there is a response to watch. A GraphQL
+endpoint answers `200` even for a failed login, and a CLI has no
+HTTP response at all. For those cases, `Limiter` is the same budget
+and windows as plain function calls, counted per key, and you choose
+the key:
 
 ```go
 limiter := ratelimit.NewLimiter(ratelimit.Config{TrustedProxies: cidrs})
@@ -53,10 +55,11 @@ if _, err := auth.Authenticate(ctx, email, password); err != nil {
 }
 ```
 
-The middleware itself runs on this, so the two share behavior rather
-than resembling each other. You decide what counts as a failure, which
-is the whole point, and you owe the fail-closed branch that `Check`
-returning an error stands for.
+The middleware itself is built on `Limiter`, so the two always
+behave the same. Two things become your job: deciding what counts as
+a failure, and treating an error from `Check` as a no. Refusing on
+error is what keeps the limiter from waving traffic through when its
+counter breaks.
 
 For the key, `ClientIP` gives the same canonical address the
 middleware keys on:
@@ -65,11 +68,12 @@ middleware keys on:
 key := ratelimit.ClientIP(r)
 ```
 
-Read the next section before trusting it. `ClientIP` reports what the
-`ResolveClientIP` middleware recorded, and falls back to the
-connecting address when that middleware has not run. Without
-`ResolveClientIP` in front, the trust model below does not apply and a
-forwarded chain is ignored:
+One warning before trusting it. `ClientIP` reports what the
+`ResolveClientIP` middleware recorded earlier in the request. If
+that middleware has not run, it quietly falls back to the connecting
+address and any forwarded chain is ignored, so behind a proxy every
+visitor would share one bucket. Mount it in front of the routes that
+call `ClientIP`:
 
 ```go
 mux.Handle("POST /graphql", ratelimit.ResolveClientIP(cidrs)(graphHandler))

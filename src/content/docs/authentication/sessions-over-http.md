@@ -37,9 +37,10 @@ success, and logging out twice is not an error.
 
 ## The seams under the handlers
 
-Each handler above is a thin HTTP shell over a transport-free method
-you can call yourself. A GraphQL resolver, a CLI, or a test needs the
-behavior without the request and response:
+Every handler above is a thin wrapper around a plain method that
+does the real work, and those methods are public. Call them directly
+when you have no HTTP request in hand, for example from a GraphQL
+resolver, a CLI command, or a test:
 
 | Seam | Answers |
 | --- | --- |
@@ -58,15 +59,16 @@ cookie, err := auth.StartSession(ctx, identity.ID)
 ```
 
 `ErrInvalidCredentials` covers unknown emails, wrong passwords, and
-disabled accounts alike, which is what makes the handler's single
-`401` indistinguishable. `Authenticate` spends the same password
-verification on an unknown email as on a real one, so calling the
-seam directly keeps the timing property the handler has.
+disabled accounts alike, so a caller cannot tell which of the three
+happened. `Authenticate` also does the same amount of password work
+whether the email exists or not, so a login attempt takes the same
+time either way and response timing leaks nothing. You get both
+protections automatically by calling the seam.
 
-The two session seams return a cookie rather than setting one, so the
-caller decides how it travels. Cookies are still the transport the
-package is built around, and `CookieName` exists so a caller reading
-the token itself does not hard-code a name that `Config` can change.
+The two session seams return a cookie instead of setting one,
+leaving it to you to attach it to whatever response you are
+building. `CookieName` tells you which cookie carries the token, so
+you never hard-code a name that `Config` can change.
 
 ## RequireSession and Identity
 

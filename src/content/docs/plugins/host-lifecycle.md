@@ -39,11 +39,11 @@ if err := host.Seed(ctx); err != nil {
 }
 ```
 
-Every `Seeder` runs in registration order and the first failure stops
-the sweep, with the same panic isolation `Start` gives. Plugins
-without the capability are skipped, so a partially seeded set of
-plugins is normal. Wire it into a development subcommand of your
-binary, never into the serve path.
+Plugins seed in registration order, and the first failure stops the
+run. A plugin that panics becomes an error naming it, the same
+protection `Start` has. Plugins without the capability are simply
+skipped. Call `Seed` from a development subcommand of your binary,
+never from the serve path.
 
 ## Routes and public paths
 
