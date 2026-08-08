@@ -80,10 +80,16 @@ toaster.show('Post moved to trash', { label: 'Undo', onAct: restore })
 
 The second argument is optional and adds one action button, given
 as a `label` and an `onAct` callback. That covers undo, the main
-reason to prefer a toast over a notice. `Toaster` accepts
-`dismissAfter` when messages need longer on screen than the
-default. The handle's type is exported as `ToasterHandle`, for
-holding one in a context or a test.
+reason to prefer a toast over a notice. The handle's type is
+exported as `ToasterHandle`, for holding one in a context or a test.
+
+`Toaster` itself takes two props:
+
+- `dismissAfter`, when messages need longer on screen than the
+  default.
+- `dismissLabel`, naming the button that clears a toast. It defaults
+  to `Dismiss`, and it is the only text godmin puts in a toast, so
+  set it if your application is not in English.
 
 One rule of thumb: a toast disappears on its own, so never put
 something in it the user still has to act on. A failure that
