@@ -9,7 +9,7 @@ database schema. It ships the host that starts and stops them, the
 generator that wires them in, and the guard that protects their
 routes.
 
-## One required interface, three optional capabilities
+## One required interface, four optional capabilities
 
 A plugin implements `Plugin`: an `ID`, a `Start`, and a `Stop`.
 Everything else is an optional capability the host discovers by type
@@ -17,6 +17,8 @@ assertion:
 
 - `Migrator` for plugins that own database schema, migrated before
   anything starts.
+- `Seeder` for plugins that can fill their own schema with
+  development data, asked outside the start path.
 - `RouteProvider` for plugins that serve HTTP under their own
   namespace.
 - `PublicPathProvider` for endpoints that must answer without a

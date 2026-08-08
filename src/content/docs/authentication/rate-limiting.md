@@ -29,12 +29,59 @@ attacker produces. Over budget, the middleware answers `429` with a
 `Retry-After` header. When its counter fails, it fails closed with a
 `500` rather than waving traffic through.
 
+## Limiting without the middleware
+
+The middleware only recognizes a failure by its `401`, which needs a
+response to inspect. A GraphQL endpoint answers `200` for a failed
+login, and a CLI has no response at all. `Limiter` is the same budget,
+same windows, and same retry values behind a key you choose:
+
+```go
+limiter := ratelimit.NewLimiter(ratelimit.Config{TrustedProxies: cidrs})
+
+allowed, retryAfter, err := limiter.Check(key)
+if err != nil {
+	return internalError()   // fail closed, as the middleware does
+}
+if !allowed {
+	return tooManyAttempts(retryAfter)
+}
+
+if _, err := auth.Authenticate(ctx, email, password); err != nil {
+	_ = limiter.RecordFailure(key)
+	return unauthorized()
+}
+```
+
+The middleware itself runs on this, so the two share behavior rather
+than resembling each other. You decide what counts as a failure, which
+is the whole point, and you owe the fail-closed branch that `Check`
+returning an error stands for.
+
+For the key, `ClientIP` gives the same canonical address the
+middleware keys on:
+
+```go
+key := ratelimit.ClientIP(r)
+```
+
+Read the next section before trusting it. `ClientIP` reports what the
+`ResolveClientIP` middleware recorded, and falls back to the
+connecting address when that middleware has not run. Without
+`ResolveClientIP` in front, the trust model below does not apply and a
+forwarded chain is ignored:
+
+```go
+mux.Handle("POST /graphql", ratelimit.ResolveClientIP(cidrs)(graphHandler))
+```
+
 ## The trust model
 
 Per-IP limiting is only as good as the IP. Behind a reverse proxy,
 every connection arrives from the proxy's address, and the real client
-lives in `X-Forwarded-For`, a header anyone can write. The middleware
-resolves this with an explicit trust boundary:
+lives in `X-Forwarded-For`, a header anyone can write. Both the
+middleware and `ResolveClientIP` resolve this the same way, with an
+explicit trust boundary:
 
 - With no trusted proxies configured, `X-Forwarded-For` is ignored and
   the connecting address is the key. Spoofed headers do nothing.

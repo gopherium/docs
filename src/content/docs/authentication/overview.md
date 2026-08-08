@@ -33,7 +33,9 @@ is that HTTP layer, shared instead of re-typed: login, logout, and
 session handlers, the `RequireSession` middleware, the `__Host-`
 cookie, the [user administration surface](/authentication/user-administration/),
 a session garbage collector, and a bootstrap helper. It exports
-handlers and middleware, never a router.
+handlers and middleware, never a router. Every handler is a shell
+over a [transport-free seam](/authentication/sessions-over-http/#the-seams-under-the-handlers)
+you can call from a resolver or a command instead.
 
 **[`authkit/postgres`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/postgres)**
 implements the store in PostgreSQL, inside [a schema it owns

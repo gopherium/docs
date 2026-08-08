@@ -28,6 +28,23 @@ Four guarantees, in order:
 - A panicking plugin becomes an error tagged with its id and
   operation. It cannot crash the host.
 
+## Seed
+
+Sample data is not part of booting. `Seed` is a separate call, so a
+production start never writes it:
+
+```go
+if err := host.Seed(ctx); err != nil {
+	return err
+}
+```
+
+Every `Seeder` runs in registration order and the first failure stops
+the sweep, with the same panic isolation `Start` gives. Plugins
+without the capability are skipped, so a partially seeded set of
+plugins is normal. Wire it into a development subcommand of your
+binary, never into the serve path.
+
 ## Routes and public paths
 
 ```go

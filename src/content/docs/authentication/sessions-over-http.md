@@ -35,6 +35,39 @@ Login rejects unknown emails, wrong passwords, and disabled accounts
 with one indistinguishable `401`. Logout without a cookie is a
 success, and logging out twice is not an error.
 
+## The seams under the handlers
+
+Each handler above is a thin HTTP shell over a transport-free method
+you can call yourself. A GraphQL resolver, a CLI, or a test needs the
+behavior without the request and response:
+
+| Seam | Answers |
+| --- | --- |
+| `auth.Authenticate(ctx, email, password)` | The `Identity`, or `ErrInvalidCredentials` |
+| `auth.StartSession(ctx, userID)` | The `*http.Cookie` to set |
+| `auth.EndSession(ctx, token)` | The clearing `*http.Cookie` |
+| `auth.SessionIdentity(ctx, token)` | The `Identity` behind a token |
+| `auth.CookieName()` | The configured cookie name |
+
+```go
+identity, err := auth.Authenticate(ctx, email, password)
+if errors.Is(err, authkit.ErrInvalidCredentials) {
+	return unauthorized()
+}
+cookie, err := auth.StartSession(ctx, identity.ID)
+```
+
+`ErrInvalidCredentials` covers unknown emails, wrong passwords, and
+disabled accounts alike, which is what makes the handler's single
+`401` indistinguishable. `Authenticate` spends the same password
+verification on an unknown email as on a real one, so calling the
+seam directly keeps the timing property the handler has.
+
+The two session seams return a cookie rather than setting one, so the
+caller decides how it travels. Cookies are still the transport the
+package is built around, and `CookieName` exists so a caller reading
+the token itself does not hard-code a name that `Config` can change.
+
 ## RequireSession and Identity
 
 ```go

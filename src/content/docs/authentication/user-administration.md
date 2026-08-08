@@ -34,6 +34,34 @@ Three behaviors worth knowing:
 - A signed-in admin cannot disable their own account. The guard runs
   against the request's `Identity`.
 
+## The seams under the admin handlers
+
+As with the session handlers, each admin handler is a shell over a
+method that takes no request and writes no response:
+
+| Seam | Answers |
+| --- | --- |
+| `admin.ListAccounts(ctx)` | Every `Account`, ordered for display |
+| `admin.CreateAccount(ctx, email, name, password)` | The created `Account` |
+| `admin.SetAccountDisabled(ctx, actorID, id, disabled)` | An error, or nil |
+
+`Account` is the administrative view of a user: `ID`, `Email`,
+`Name`, `Disabled`, and `CreatedAt`. It has no field for password
+material, so the type itself is why a listing cannot leak a hash.
+
+`SetAccountDisabled` takes the actor separately from the target and
+returns `ErrSelfDisable` when they match. The HTTP handler passes the
+request's `Identity` as the actor, so a caller reaching the seam
+directly has to name who is acting, and the self-disable guard cannot
+be skipped by accident:
+
+```go
+err := admin.SetAccountDisabled(ctx, identity.ID, targetID, true)
+if errors.Is(err, authkit.ErrSelfDisable) {
+	return conflict()
+}
+```
+
 ## Sweeping expired sessions
 
 Expired sessions miss on lookup either way, but the rows need
