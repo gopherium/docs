@@ -58,6 +58,16 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Translations',
+					items: [
+						{ slug: 'translations/overview' },
+						{ slug: 'translations/runtime' },
+						{ slug: 'translations/building' },
+						{ slug: 'translations/health' },
+						{ slug: 'translations/sync' },
+					],
+				},
+				{
 					label: 'Testing',
 					items: [
 						{ slug: 'testing/end-to-end' },
