@@ -16,13 +16,13 @@ auth := authkit.New(authkit.Config{
 	Store:      store,                      // any gouncer.Store
 	CookieName: "__Host-myapp_session",     // empty applies "__Host-session"
 	SessionTTL: 0,                          // zero applies gouncer's default
-	Privileged: gouncer.Ranks{"admin"},     // empty admits every rank
+	Privileged: gouncer.Roles{"admin"},     // empty admits every role
 })
 ```
 
 One `Config` value carries every knob. `SessionTTL` bounds the issued
 session and the cookie's `MaxAge` from the same value, so the two
-expiries cannot drift apart. `Privileged` names the ranks that pass
+expiries cannot drift apart. `Privileged` names the roles that pass
 `RequirePrivilege`, explained below. authkit copies the list, so
 changing your slice later does not change the gate.
 
@@ -87,7 +87,7 @@ request context:
 identity := authkit.IdentityFromContext(r.Context())
 ```
 
-`Identity` carries the id, email, name and rank, and deliberately
+`Identity` carries the id, email, name and role, and deliberately
 nothing else. Credential material never enters the request context.
 For middleware of your own that composes with authkit's,
 `WithIdentity` is exported too.
@@ -95,21 +95,21 @@ For middleware of your own that composes with authkit's,
 ## RequirePrivilege
 
 Some routes are for administrators only. `RequirePrivilege` sits after
-`RequireSession` and admits only a rank named in `Config.Privileged`:
+`RequireSession` and admits only a role named in `Config.Privileged`:
 
 ```go
 mux.Handle("GET /api/settings", auth.RequireSession(auth.RequirePrivilege(http.HandlerFunc(handleSettings))))
 ```
 
-Any other rank gets a 403 with the code `rank_insufficient`. An
-account with no rank never passes. If `Privileged` is empty the
+Any other role gets a 403 with the code `role_insufficient`. An
+account with no role never passes. If `Privileged` is empty the
 middleware admits everyone, so adding it to a route changes nothing
-until you name the ranks.
+until you name the roles.
 
-The rank is plain text. authkit stores it and checks it against your
-list. What each rank may do is your application's decision. Keep
-those decisions in one place in your code, asking "may this rank do
-X" rather than "is this rank admin", so you can change the rules
+The role is plain text. authkit stores it and checks it against your
+list. What each role may do is your application's decision. Keep
+those decisions in one place in your code, asking "may this role do
+X" rather than "is this role admin", so you can change the rules
 later without touching every handler.
 
 ## Composing error responses
@@ -151,7 +151,7 @@ The codes authkit can answer with:
 | --- | --- |
 | `credentials_invalid` | Wrong email or password |
 | `session_absent` | No usable session cookie |
-| `rank_insufficient` | The rank may not use this route |
+| `role_insufficient` | The role may not use this route |
 | `body_malformed` | The request body is not valid JSON |
 | `body_too_large` | The request body is over the cap |
 | `body_field_required` | A required field is missing, `meta.field` names it |
@@ -159,13 +159,13 @@ The codes authkit can answer with:
 | `name_required`, `name_too_long` | The name is empty, or over the cap |
 | `password_too_short`, `password_too_long` | The password is outside the bounds |
 | `user_id_malformed`, `user_not_found` | The id is not a UUID, or matches no account |
-| `self_disable_refused`, `self_rank_refused` | An account changing itself |
+| `self_disable_refused`, `self_role_refused` | An account changing itself |
 | `last_privileged_refused` | The last administrator cannot be removed |
 | `internal` | Something failed on the server |
 
 The [rate limiter](/authentication/rate-limiting/) adds
 `login_rate_limited`. The [React package](/authentication/react-integration/)
-turns the rank codes into typed errors a screen can catch.
+turns the role codes into typed errors a screen can catch.
 
 ## The cookie
 

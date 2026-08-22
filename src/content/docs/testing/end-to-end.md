@@ -164,7 +164,7 @@ e2e-db-reset:
 e2e-seed: build
 	printf '%s\n' "$(E2E_PASSWORD)" | \
 		MYAPP_DATABASE_URL="$(E2E_DATABASE_URL)" \
-		./myapp createadmin -email "$(E2E_EMAIL)" -name "$(E2E_NAME)" -rank admin
+		./myapp createadmin -email "$(E2E_EMAIL)" -name "$(E2E_NAME)" -role admin
 ```
 
 Those credentials appear in three places: the test environment module,

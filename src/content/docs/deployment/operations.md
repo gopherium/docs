@@ -73,7 +73,7 @@ distroless image:
 
 ```sh
 docker compose exec myapp /myapp createadmin \
-  -email admin@example.com -name "Maria Perez" -rank admin
+  -email admin@example.com -name "Maria Perez" -role admin
 ```
 
 Never create that first account by inserting database rows by hand.
