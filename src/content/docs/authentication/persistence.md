@@ -35,7 +35,9 @@ cleanup, with no extra wiring.
 
 `Migrate` owns the `auth` schema: the `auth.users` and `auth.sessions`
 tables, their indexes, and its own record of applied migrations in
-`auth.goose_db_version`.
+`auth.goose_db_version`. Every account row carries a `rank` column,
+plain text and empty by default, with an index over the accounts that
+hold one.
 
 That last part is the important one. Your application keeps its own
 migration record in its own table. Run both migrators at startup, the
@@ -69,6 +71,21 @@ following for any module of yours that owns tables, including
   slip through in application code.
 - `SetUserDisabled` sets the flag and deletes that account's sessions
   in a single transaction. Either both happen or neither does.
+- `SetUserDisabledUnderCover` and `SetUserRank` do the same under one
+  more rule: they refuse, with `gouncer.ErrLastPrivileged`, any change
+  that would leave no enabled account under a privileged rank. The
+  store locks the privileged rows, recounts, and writes inside one
+  transaction, so two administrators removing each other at the same
+  moment cannot both get through. Pass an empty set of privileged
+  ranks and the rule is off.
+- `GrantRankToRankless` gives a rank to every account holding none and
+  returns how many it changed. It refuses an empty rank with
+  `gouncer.ErrEmptyRank`, and running it twice changes nothing the
+  second time. The [grandfathering
+  subcommand](/authentication/user-administration/#giving-a-rank-to-accounts-that-hold-none)
+  is built on it.
+- Every read of a user, by email, by id or by session, carries the
+  rank the account holds.
 - `DeleteExpiredSessions` returns how many rows it removed, and uses
   an index on the expiry column, so cleanup never scans the whole
   table.
