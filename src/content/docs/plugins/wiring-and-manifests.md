@@ -63,6 +63,34 @@ backend, and it applies to the TypeScript file only. Every field is
 documented on
 [pkg.go.dev](https://pkg.go.dev/github.com/gopherium/pluginkit/wire).
 
+### More than one plugin folder
+
+By default the generator reads `plugins/`. `Roots` names the folders
+to read instead, in order:
+
+```go
+Roots: []string{"plugins", "extra/plugins"},
+```
+
+Each folder is read in full before the next. A plugin id that appears
+in two folders is an error, so two folders can never fight over one
+name.
+
+### A registry for tests
+
+Test code sometimes needs every plugin at once, not the wired
+application. Set `GoRegistryPath` and `GoRegistryPackage` together
+and `Run` writes one more Go file:
+
+```go
+GoRegistryPath:    "internal/registry/registry_gen.go",
+GoRegistryPackage: "registry",
+```
+
+The file holds one function, `All(deps sdk.Deps) ([]sdk.Plugin, error)`,
+returning every plugin in registration order. Setting only one of the
+two fields is an error.
+
 ## What each plugin must provide
 
 The generator writes calls, and your compiler checks that the

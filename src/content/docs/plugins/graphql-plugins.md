@@ -96,6 +96,7 @@ var graphConfig = graphwire.Config{
 	License:         "Apache-2.0",
 	Package:         "graphroot",
 	SDKImport:       "github.com/you/myapp/sdk",
+	Roots:           []string{"plugins"},
 }
 
 func main() {
@@ -105,6 +106,12 @@ func main() {
 	}
 }
 ```
+
+`Roots` names the plugin folders to read, in order, and may be left
+out to read `plugins/` alone. Each plugin's schema is read from the
+folder its manifest came from. Keep the list the same as the one you
+give the [wiring generator](/plugins/wiring-and-manifests/#more-than-one-plugin-folder),
+so both see the same plugins.
 
 What each field is for:
 
