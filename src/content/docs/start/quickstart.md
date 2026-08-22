@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gopherium/gouncer"
 	"github.com/gopherium/gouncer/authkit"
 	authkitpg "github.com/gopherium/gouncer/authkit/postgres"
 	"github.com/gopherium/gouncer/authkit/ratelimit"
@@ -57,7 +58,7 @@ func main() {
 		Store:      store,
 		CookieName: "__Host-myapp_session",
 	})
-	admin := authkit.NewAdmin(store)
+	admin := authkit.NewAdmin(authkit.AdminConfig{Store: store, Privileged: gouncer.Ranks{"admin"}})
 	limit := ratelimit.Middleware(ratelimit.Config{})
 
 	reaper := authkit.NewReaper(store, authkit.ReaperConfig{})
@@ -71,6 +72,7 @@ func main() {
 	mux.Handle("GET /api/users", auth.RequireSession(http.HandlerFunc(admin.List)))
 	mux.Handle("POST /api/users", auth.RequireSession(http.HandlerFunc(admin.Create)))
 	mux.Handle("PATCH /api/users/{id}", auth.RequireSession(http.HandlerFunc(admin.SetDisabled)))
+	mux.Handle("PUT /api/users/{id}/rank", auth.RequireSession(http.HandlerFunc(admin.SetRank)))
 
 	log.Fatal(http.ListenAndServe("localhost:8080", mux))
 }
@@ -79,7 +81,9 @@ func main() {
 A fresh database has no users, and creating one requires being
 logged in, so you need a way in. Add a subcommand to your binary for
 it. `RunCreateAdmin` is the entire subcommand, handling the flags,
-the migration and the password prompt:
+the migration and the password prompt. The `-rank` flag names what
+the account may do, and `admin` is the rank the server above admits
+to the user routes:
 
 ```go
 err := authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdout)
