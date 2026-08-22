@@ -16,12 +16,15 @@ auth := authkit.New(authkit.Config{
 	Store:      store,                      // any gouncer.Store
 	CookieName: "__Host-myapp_session",     // empty applies "__Host-session"
 	SessionTTL: 0,                          // zero applies gouncer's default
+	Privileged: gouncer.Ranks{"admin"},     // empty admits every rank
 })
 ```
 
 One `Config` value carries every knob. `SessionTTL` bounds the issued
 session and the cookie's `MaxAge` from the same value, so the two
-expiries cannot drift apart.
+expiries cannot drift apart. `Privileged` names the ranks that pass
+`RequirePrivilege`, explained below. authkit copies the list, so
+changing your slice later does not change the gate.
 
 ## The handlers
 
@@ -84,33 +87,85 @@ request context:
 identity := authkit.IdentityFromContext(r.Context())
 ```
 
-`Identity` carries the id, email, and name, and deliberately nothing
-else. Credential material never enters the request context. For
-middleware of your own that composes with authkit's, `WithIdentity`
-is exported too.
+`Identity` carries the id, email, name and rank, and deliberately
+nothing else. Credential material never enters the request context.
+For middleware of your own that composes with authkit's,
+`WithIdentity` is exported too.
+
+## RequirePrivilege
+
+Some routes are for administrators only. `RequirePrivilege` sits after
+`RequireSession` and admits only a rank named in `Config.Privileged`:
+
+```go
+mux.Handle("GET /api/settings", auth.RequireSession(auth.RequirePrivilege(http.HandlerFunc(handleSettings))))
+```
+
+Any other rank gets a 403 with the code `rank_insufficient`. An
+account with no rank never passes. If `Privileged` is empty the
+middleware admits everyone, so adding it to a route changes nothing
+until you name the ranks.
+
+The rank is plain text. authkit stores it and checks it against your
+list. What each rank may do is your application's decision. Keep
+those decisions in one place in your code, asking "may this rank do
+X" rather than "is this rank admin", so you can change the rules
+later without touching every handler.
 
 ## Composing error responses
 
-authkit exposes its JSON vocabulary so your domain handlers speak the
-same dialect: `Respond`, `RespondError`, and a bounded `Decode` that
-caps request bodies and rejects trailing content. For error mapping,
-chain your domain's cases in front of the auth mapping:
+Every refusal authkit writes is a JSON object with two parts. The
+`error` field is a message in English. The `code` field is a short
+fixed name like `credentials_invalid`. Clients should match on the
+code. The message can change, the code does not.
+
+```json
+{"error": "invalid credentials", "code": "credentials_invalid"}
+```
+
+Your own handlers can answer in the same shape. `Respond` writes a
+value, `RespondRefusal` writes a `Refusal` with its message and code,
+and a bounded `Decode` caps request bodies and rejects trailing
+content. For error mapping, chain your domain's cases in front of the
+auth mapping:
 
 ```go
-func statusFor(err error) (int, string) {
+func refusalFor(err error) (int, authkit.Refusal) {
 	switch {
 	case errors.Is(err, myapp.ErrNotFound):
-		return http.StatusNotFound, err.Error()
+		return http.StatusNotFound, authkit.Refusal{Message: err.Error(), Code: "item_not_found"}
 	}
-	if status, message, ok := authkit.StatusForAuthError(err); ok {
-		return status, message
+	if status, refusal, ok := authkit.RefusalForAuthError(err); ok {
+		return status, refusal
 	}
-	return http.StatusInternalServerError, "internal error"
+	return http.StatusInternalServerError, authkit.Refusal{Message: "internal error", Code: "internal"}
 }
 ```
 
-Unrecognized errors mask as `internal error` so backend details never
-leak into responses.
+Unrecognized errors mask as `internal` so backend details never leak
+into responses.
+
+The codes authkit can answer with:
+
+| Code | Meaning |
+| --- | --- |
+| `credentials_invalid` | Wrong email or password |
+| `session_absent` | No usable session cookie |
+| `rank_insufficient` | The rank may not use this route |
+| `body_malformed` | The request body is not valid JSON |
+| `body_too_large` | The request body is over the cap |
+| `body_field_required` | A required field is missing, `meta.field` names it |
+| `email_invalid`, `email_taken` | The email is malformed, or already in use |
+| `name_required`, `name_too_long` | The name is empty, or over the cap |
+| `password_too_short`, `password_too_long` | The password is outside the bounds |
+| `user_id_malformed`, `user_not_found` | The id is not a UUID, or matches no account |
+| `self_disable_refused`, `self_rank_refused` | An account changing itself |
+| `last_privileged_refused` | The last administrator cannot be removed |
+| `internal` | Something failed on the server |
+
+The [rate limiter](/authentication/rate-limiting/) adds
+`login_rate_limited`. The [React package](/authentication/react-integration/)
+turns the rank codes into typed errors a screen can catch.
 
 ## The cookie
 

@@ -79,6 +79,23 @@ in could be used to exhaust memory.
 generic messages. Anything unrecognised becomes `internal error`, so a
 database or driver message never reaches a caller.
 
+## Ranks
+
+**An account with no rank has no authority.** Every rank check treats
+an empty rank as a miss. A row someone inserts by hand, or an account
+from before your app used ranks, cannot reach an administrator route
+until an operator gives it a rank on purpose.
+
+**The last administrator cannot be removed.** Disabling or demoting
+the last enabled account with a privileged rank is refused. The store
+locks the privileged rows and counts again inside one transaction, so
+two administrators removing each other at the same time cannot both
+succeed.
+
+**Nobody changes their own rank.** The request's identity is compared
+with the target account, so a stolen session cannot promote itself
+through the admin routes.
+
 ## What is still your job
 
 - **Terminate TLS in front of the application.** The cookie is marked
@@ -87,8 +104,9 @@ database or driver message never reaches a caller.
 - **Configure your trusted proxy ranges honestly**, as described in
   the [operations contract](/deployment/operations/). Getting this
   wrong breaks rate limiting in one direction or the other.
-- **Authorization.** These bricks answer who someone is. Deciding what
-  that person is allowed to do is your application's logic.
+- **Authorization.** These bricks answer who someone is and which rank
+  they hold. Deciding what each rank is allowed to do is your
+  application's logic. Keep that logic in one place.
 - **Anything beyond `SameSite=Lax`** that your threat model calls for.
   The bricks define no state-changing GET requests of their own.
 

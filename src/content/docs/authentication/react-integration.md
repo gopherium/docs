@@ -52,7 +52,9 @@ back, from anywhere in the application, with no page reload.
 
 ## Hooks and the session key
 
-- `useSession()` reads the signed-in user from the cache.
+- `useSession()` reads the signed-in user from the cache: id, email,
+  name and rank. The rank is plain text from your server, empty when
+  the server sends none.
 - `useLogout()` logs out and clears every cached query except the
   session itself, so one user's data cannot show up after the next
   person logs in.
@@ -119,12 +121,54 @@ configureAuthTransport({
 Everything above this line keeps working unchanged. The screens, the
 gate, the hooks and the query keys never know the requests moved.
 
-There are seven operations in the `AuthTransport` interface:
+There are eight operations in the `AuthTransport` interface:
 `fetchSession`, `login`, `logout`, `isSessionRevoked`, `fetchUsers`,
-`createUser` and `setUserDisabled`. You override the ones you want
-and the rest keep using REST, which makes a gradual migration
-possible. Calls to `configureAuthTransport` add up rather than
-replace each other, so you can configure in more than one place.
+`createUser`, `setUserDisabled` and `setUserRank`. You override the
+ones you want and the rest keep using REST, which makes a gradual
+migration possible. Calls to `configureAuthTransport` add up rather
+than replace each other, so you can configure in more than one place.
+
+## Ranks in the admin functions
+
+The `/admin` entry lists, creates and changes accounts. Each listed
+`User` carries a `rank`. `createUser` takes an optional `rank` for
+the new account, and `setUserRank(id, rank)` changes one.
+
+A rank change can be refused three ways, and each is a typed error
+a screen can catch:
+
+| Error | The server said |
+| --- | --- |
+| `RankRefusedError` | The signed-in account may not change ranks |
+| `SelfRankError` | An account tried to change its own rank |
+| `LastPrivilegedError` | It would remove the last administrator |
+
+What a rank means is your application's decision. Keep the answer
+in one function, such as `can(rank, 'manage_users')`, and ask that
+function from every screen. Then a screen never compares rank names
+itself.
+
+## Languages
+
+Every string the package renders is translatable. It ships a Spanish
+catalogue and reads the text domain `DOMAIN`. Load the catalogue for
+the reader's language once at startup, with the same `@wordpress/i18n`
+copy your application uses:
+
+```ts
+import { setLocaleData } from '@wordpress/i18n'
+import { DOMAIN, catalogFor } from '@gopherium/react-auth'
+
+const catalog = await catalogFor('es-ES')
+if (catalog !== undefined) {
+	setLocaleData(catalog, DOMAIN)
+}
+```
+
+`catalogFor` resolves to `undefined` for a language the package does
+not ship, and the screens stay in English. `@wordpress/i18n` is a
+required peer, and your bundler must resolve exactly one copy of it,
+or the package translates into a copy your application never loaded.
 
 ### Matching the error contract
 
@@ -192,7 +236,10 @@ tests and cleans up the DOM between them.
 
 `seedSession(client, user)` puts a signed-in user straight into the
 query cache, so a test can render a component behind the gate without
-logging in over the network first.
+logging in over the network first. `defaultUser` is the canned account
+most tests sign in as. It holds no rank. `rankedUser('editor')` cans
+an account under any rank, with its own stable id, so a test can walk
+both sides of a gate. `rankOk()` answers a rank change with success.
 
 The canned handlers cover every outcome each endpoint can produce,
 from `loginOk` to `loginRateLimited`. Naming one says what the test
