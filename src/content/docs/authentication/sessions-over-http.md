@@ -114,7 +114,7 @@ later without touching every handler.
 
 ## Composing error responses
 
-Every refusal authkit writes is a JSON object with two parts. The
+Every error authkit writes is a JSON object with two parts. The
 `error` field is a message in English. The `code` field is a short
 fixed name like `credentials_invalid`. Clients should match on the
 code. The message can change, the code does not.
@@ -124,21 +124,21 @@ code. The message can change, the code does not.
 ```
 
 Your own handlers can answer in the same shape. `Respond` writes a
-value, `RespondRefusal` writes a `Refusal` with its message and code,
-and a bounded `Decode` caps request bodies and rejects trailing
+value, `RespondError` writes an `ErrorResponse` with its message and
+code, and a bounded `Decode` caps request bodies and rejects trailing
 content. For error mapping, chain your domain's cases in front of the
 auth mapping:
 
 ```go
-func refusalFor(err error) (int, authkit.Refusal) {
+func errorResponseFor(err error) (int, authkit.ErrorResponse) {
 	switch {
 	case errors.Is(err, myapp.ErrNotFound):
-		return http.StatusNotFound, authkit.Refusal{Message: err.Error(), Code: "item_not_found"}
+		return http.StatusNotFound, authkit.ErrorResponse{Message: err.Error(), Code: "item_not_found"}
 	}
-	if status, refusal, ok := authkit.RefusalForAuthError(err); ok {
-		return status, refusal
+	if status, response, ok := authkit.ErrorResponseForAuthError(err); ok {
+		return status, response
 	}
-	return http.StatusInternalServerError, authkit.Refusal{Message: "internal error", Code: "internal"}
+	return http.StatusInternalServerError, authkit.ErrorResponse{Message: "internal error", Code: "internal"}
 }
 ```
 
