@@ -74,10 +74,10 @@ A new account starts under the role the create request names, and
 `PUT /api/users/{id}/role` changes it. Both take the role as plain
 text in a `role` field. The role reaches the browser on every listed
 account and on the session, so a screen can hide what the signed-in
-account cannot do. Hiding is a convenience for the reader. The refusal
-below is the enforcement.
+account cannot do. Hiding is a convenience for the reader. Refusing
+the write below is the enforcement.
 
-The admin routes answer these refusal codes. Each comes with a message
+The admin routes answer these error codes. Each comes with a message
 in English, and the code is the part a client should match on:
 
 | Code | Status | When |

@@ -29,7 +29,7 @@ attacker produces. Over budget, the middleware answers `429` with a
 `Retry-After` header and the code `login_rate_limited`. When its
 counter fails, it fails closed with a `500` and the code `internal`
 rather than waving traffic through. Both answers use the same JSON
-shape as every other [refusal](/authentication/sessions-over-http/#composing-error-responses),
+shape as every other [error](/authentication/sessions-over-http/#composing-error-responses),
 so a client matches on the code.
 
 ## Limiting without the middleware
