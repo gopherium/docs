@@ -1,6 +1,6 @@
 ---
 title: Catalogue health
-description: Three checks that keep catalogues honest, and the gate against two copies of the runtime.
+description: Four checks that keep catalogues honest, and the gate against two copies of the runtime.
 ---
 
 Catalogues rot quietly. A message gets renamed and its translation is
@@ -8,15 +8,15 @@ orphaned. A placeholder is dropped and the sentence renders broken.
 Nothing throws. gottext ships checks you run as ordinary tests, so
 the build catches all of it.
 
-All five come from `@gopherium/gottext/build`.
+All of them come from `@gopherium/gottext/build`.
 
-## Three checks over a catalogue
+## Four checks over a catalogue
 
 Each takes PO text and returns the keys that fail. An empty array
 means healthy.
 
 ```ts
-import { mismatched, orphaned, untranslated } from '@gopherium/gottext/build'
+import { mismatched, orphaned, unreviewed, untranslated } from '@gopherium/gottext/build'
 
 const template = readFileSync('languages/myapp.pot', 'utf8')
 const catalog = readFileSync('languages/es-ES.po', 'utf8')
@@ -24,6 +24,7 @@ const catalog = readFileSync('languages/es-ES.po', 'utf8')
 expect(untranslated(catalog, template)).toEqual([])
 expect(orphaned(catalog, template)).toEqual([])
 expect(mismatched(catalog, template)).toEqual([])
+console.log(`awaiting review: ${unreviewed(catalog).length}`)
 ```
 
 | Check | Finds |
@@ -31,14 +32,23 @@ expect(mismatched(catalog, template)).toEqual([])
 | `untranslated` | Messages in the template with no translation yet |
 | `orphaned` | Translations for messages the template no longer names |
 | `mismatched` | Translations whose placeholders do not match the message |
+| `unreviewed` | Answers still carrying the fuzzy flag |
 
 `mismatched` is the one that prevents visible breakage. If the
 message is `Disable %(name)s` and the translation says `Disable %s`,
 the rendered sentence is wrong. It catches the reverse too, a
 translation naming `%(name)s` where the message carries a bare `%s`.
+It reads fuzzy answers like any other, so a machine translation that
+breaks a placeholder fails the gate before it ships.
 
-Run all three per language in a test and a broken catalogue cannot
-merge.
+`unreviewed` is different from its siblings. A fuzzy answer is
+answered, so `untranslated` does not list it, and it ships to
+readers. The count is review debt, not breakage. Report it in a log
+rather than asserting it empty, the whole point of the fuzzy loop is
+that it drains through review rather than blocking a merge.
+
+Run the first three per language in a test and a broken catalogue
+cannot merge.
 
 ## One copy of the runtime
 
