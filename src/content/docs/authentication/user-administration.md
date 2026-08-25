@@ -168,8 +168,11 @@ distroless image. The
 shows the deployment shape.
 
 `EnsureAdmin` is for seeders: the password is an argument, an
-existing email is a no-op, and the returned bool reports whether the
-account was created. Running it twice is safe:
+existing email keeps its password and its role, and the returned bool
+reports whether the account was created. One repair rides along: an
+existing account holding no role is stamped with the asked one, so a
+seed run brings a pre-roles installation's account across. Running it
+twice is safe:
 
 ```go
 created, err := authkit.EnsureAdmin(ctx, store, email, name, password, "admin")
