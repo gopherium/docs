@@ -69,6 +69,14 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Mail',
+					items: [
+						{ slug: 'mail/overview' },
+						{ slug: 'mail/templates' },
+						{ slug: 'mail/testing' },
+					],
+				},
+				{
 					label: 'Testing',
 					items: [
 						{ slug: 'testing/end-to-end' },
