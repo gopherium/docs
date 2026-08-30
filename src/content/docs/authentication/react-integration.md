@@ -58,6 +58,10 @@ back, from anywhere in the application, with no page reload.
 - `useLogout()` logs out and clears every cached query except the
   session itself, so one user's data cannot show up after the next
   person logs in.
+- `adoptSession(client, user)` installs a user who just signed in some
+  other way, such as accepting an invitation. It does the same cache
+  clearing as a logout, so whatever the previous account left cached
+  is gone before the new person's screens render.
 - `sessionQueryKey` is the React Query key for the session, and this
   package owns it.
 
@@ -73,22 +77,66 @@ exactly one definition of what the session is.
 If your application uses the WordPress Design System, the `/wpds`
 entry has every screen a login needs already built:
 
-- `LoginScreen`, which takes a `brand` prop
+- `LoginScreen`, which takes a `brand` prop and an optional
+  `onForgotPassword` that renders the way to a password reset
 - `AccountPanel`, showing who is signed in with a logout control
 - `UsersScreen` and `NewUserScreen` for user administration
+- `SetPasswordScreen` for the person accepting an invitation
+- `RequestResetScreen` and `ResetPasswordScreen` for a forgotten
+  password
 - `usersNavItem` for your navigation
 
 None of them know your router, and they stay that way by handing
 navigation back to you. `UsersScreen` takes `newUserRender`, an
 element to use as its create link, so you supply your own link
-component. `NewUserScreen` calls `onCreated` when the user is saved,
-and your application decides where to go next.
+component. `NewUserScreen` calls `onCreated` when the invitation is
+handled, and your application decides where to go next.
 
 Import the stylesheet once:
 
 ```tsx
 import '@gopherium/react-auth/wpds/style.css'
 ```
+
+## Invitations and password resets
+
+Since 0.8.0 the package covers how an account starts and how a lost
+password comes back. The server side of both is
+[invites and resets](/authentication/invites-and-resets/), served by
+`authkit` 0.12.0 or newer. On an older backend the new screens get a
+404, while everything else on this page keeps working.
+
+An account starts with an invitation. An administrator fills in
+`NewUserScreen` with an email and a name, and the server mails an
+activation link. No password is typed by the administrator, which is
+the point: only the invited person ever knows it. When the server has
+no mail set up, the screen shows the activation link read-only so the
+administrator can deliver it by hand. Either way the answer never
+reveals whether the address already had an account.
+
+The activation link lands on your route holding `SetPasswordScreen`:
+
+```tsx
+<SetPasswordScreen
+	brand="MyApp"
+	token={tokenFromTheURL}
+	onAccepted={(user) => adoptSession(queryClient, user)}
+/>
+```
+
+Accepting sets the password and signs the person in, in one step. Your
+`onAccepted` installs the session and navigates. If it fails, the
+screen offers a retry that never spends the single use token again.
+
+A forgotten password is the same shape from the other side.
+`RequestResetScreen` asks for an email and always answers the same
+neutral sentence, so it cannot be used to check which addresses have
+accounts. The mailed link lands on `ResetPasswordScreen`, which takes
+the same `token` prop and an `onDone` for the way back to the login.
+Pass `onForgotPassword` to your `LoginScreen` to render the way in.
+
+Each link works once and then expires. A spent or expired link shows
+"This link is no longer valid" with advice on getting a new one.
 
 ## Talking to a backend that is not REST
 
@@ -121,12 +169,14 @@ configureAuthTransport({
 Everything above this line keeps working unchanged. The screens, the
 gate, the hooks and the query keys never know the requests moved.
 
-There are eight operations in the `AuthTransport` interface:
+There are twelve operations in the `AuthTransport` interface:
 `fetchSession`, `login`, `logout`, `isSessionRevoked`, `fetchUsers`,
-`createUser`, `setUserDisabled` and `setUserRole`. You override the
-ones you want and the rest keep using REST, which makes a gradual
-migration possible. Calls to `configureAuthTransport` add up rather
-than replace each other, so you can configure in more than one place.
+`createUser`, `setUserDisabled`, `setUserRole`, `invite`,
+`acceptInvite`, `requestPasswordReset` and `resetPassword`. You
+override the ones you want and the rest keep using REST, which makes
+a gradual migration possible. Calls to `configureAuthTransport` add
+up rather than replace each other, so you can configure in more than
+one place.
 
 ## Roles in the admin functions
 
@@ -189,10 +239,20 @@ turns a wrong password into a crash instead of a form message.
 | `fetchUsers` | Throw `UnauthorizedError` when the session is gone |
 | `createUser` | Throw `UnauthorizedError`, `EmailTakenError` for a duplicate email, `ValidationError` for bad input |
 | `setUserDisabled` | Throw `UnauthorizedError` when the session is gone |
+| `invite` | Answer `{ delivered: true }` or `{ delivered: false, activation_link }`, the same shape whether the address is taken or fresh. Throw `ValidationError` for bad input, never `EmailTakenError` |
+| `acceptInvite` | Return the signed-in user. Throw `InvalidTokenError` for a spent, expired or unknown link |
+| `requestPasswordReset` | Answer nothing about the address. Throw `RateLimitedError` when the limiter refuses |
+| `resetPassword` | Throw `InvalidTokenError` for a dead link, `ValidationError` for a refused password |
 
-`InvalidCredentialsError`, `RateLimitedError` and `UnauthorizedError`
-come from the main entry point. `EmailTakenError` and
-`ValidationError` come from `/admin`.
+`InvalidCredentialsError`, `RateLimitedError`, `UnauthorizedError` and
+`InvalidTokenError` come from the main entry point. `EmailTakenError`
+and `ValidationError` come from `/admin`, and `ValidationError` is
+also exported from the main entry point.
+
+The `invite` answer is checked, not trusted. A custom transport that
+answers `delivered: false` without an activation link is treated as a
+failed invitation, because a screen showing an empty link would strand
+the invited account.
 
 `UnauthorizedError` deserves particular care, because it is what
 [`createAuthQueryClient`](#the-gate) watches for to drop the session
@@ -246,9 +306,11 @@ an account under any role, with its own stable id, so a test can walk
 both sides of a gate. `roleOk()` answers a role change with success.
 
 The canned handlers cover every outcome each endpoint can produce,
-from `loginOk` to `loginRateLimited`. Naming one says what the test
-is about, which reads better than pasting a response body into every
-spec.
+from `loginOk` to `loginRateLimited`. The invitation and reset routes
+are canned too: `inviteDelivered()`, `inviteUndelivered(link)`,
+`activateOk()`, `activateInvalidToken()`, `resetRequestOk()` and
+`resetOk()` among them. Naming one says what the test is about, which
+reads better than pasting a response body into every spec.
 
 Two things you have to set up on your side:
 
