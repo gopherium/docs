@@ -101,8 +101,11 @@ request involved:
 | `admin.SetAccountRole(ctx, actorID, id, role)` | An error, or nil |
 
 `Account` is the administrative view of a user: `ID`, `Email`,
-`Name`, `Disabled`, `Role` and `CreatedAt`. It carries no password
-field at all, so a listing cannot leak a hash.
+`Name`, `Disabled`, `Confirmed`, `Role` and `CreatedAt`. It carries
+no password field at all, so a listing cannot leak a hash.
+`Confirmed` is false for an invited account until the person
+activates it, which is how a screen tells a pending invitation from
+an active account.
 
 `SetAccountDisabled` and `SetAccountRole` take two ids: `actorID` is
 whoever is making the change, and `id` is the account being changed.
