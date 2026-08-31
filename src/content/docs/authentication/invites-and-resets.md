@@ -62,22 +62,35 @@ id, err := invites.RedeemReset(ctx, secret, newPassword)
 That replaces the password and ends every session the account holds,
 so anyone already signed in as them is logged out.
 
-Only one reset link stands at a time. Asking again while one is live
-answers `gouncer.ErrTokenExists`, which stops someone flooding a
+By default one reset link stands at a time. Asking again while one is
+live answers `gouncer.ErrTokenExists`, which stops someone flooding a
 mailbox by repeatedly submitting the form.
 
-Sometimes the first mail never arrives. Without help the person is
-locked out until the link expires. `ResendReset` is the way past
-that:
+That default has a cost. If the mail is lost or filtered, the person
+holds no link and cannot ask for another until the first expires.
+`ResetTokensLive` lets several links stand at once instead:
 
 ```go
-tok, err := invites.ResendReset(ctx, "maria@example.com")
+invites := authkit.NewInvites(authkit.InvitesConfig{
+	Store:           store,
+	ResetTokensLive: 3,
+})
 ```
 
-It replaces the standing reset link with a fresh one, which
-invalidates the old link. It follows the same address rules as
-`RequestReset`. Rate limit it yourself, because every call sends
-another mail.
+Now a repeat request mints an independent link and answers it, so a
+lost mail is fixed by asking again. Links already sent keep working,
+which matters because the reset form is usually open to anyone. If a
+request replaced the standing link, a stranger who knows an address
+could destroy the link sitting in that person's inbox. Adding links
+never takes one away.
+
+`gouncer.ErrTokenExists` now means the cap is reached, not that a
+link exists. Spending any link of a stack retires all of them, so a
+completed reset closes the whole recovery window.
+
+Deciding how many links may stand is not the same as deciding how
+often to mail. Nothing here rate limits delivery, so cap the mail one
+address receives yourself, and do it before you mint the token.
 
 ## Four rules worth knowing
 
