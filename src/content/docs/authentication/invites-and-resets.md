@@ -66,6 +66,19 @@ Only one reset link stands at a time. Asking again while one is live
 answers `gouncer.ErrTokenExists`, which stops someone flooding a
 mailbox by repeatedly submitting the form.
 
+Sometimes the first mail never arrives. Without help the person is
+locked out until the link expires. `ResendReset` is the way past
+that:
+
+```go
+tok, err := invites.ResendReset(ctx, "maria@example.com")
+```
+
+It replaces the standing reset link with a fresh one, which
+invalidates the old link. It follows the same address rules as
+`RequestReset`. Rate limit it yourself, because every call sends
+another mail.
+
 ## Four rules worth knowing
 
 These are decided for you, and none of them is obvious from the
