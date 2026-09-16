@@ -82,6 +82,11 @@ canvas inherits from the frame. Set both when the rail and the
 canvas should differ. Each accepts the same color values as the
 design system theme provider.
 
+Dialogs, drawers, menus, popovers and selects you open inside the
+frame do not take these colors. They use the `AdminRoot` color
+instead. Tooltips still follow the frame colors. The navigation
+drawer is an exception and keeps `chromeColor`.
+
 ## Two canvas modes
 
 `Frame.Canvas` takes `canvas`, typed as `CanvasMode`, with two
