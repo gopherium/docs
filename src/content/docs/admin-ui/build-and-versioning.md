@@ -19,16 +19,20 @@ linting and versioning.
 
 ## One copy of each shared package
 
-Your bundle must contain exactly one copy of React and of each design
-system package. Two copies of React crash on the first hook. Two
-copies of `@wordpress/theme` or `@gopherium/react-auth` fail
-silently: components render unthemed, or a
-[configured transport](/authentication/react-integration/#one-setting-for-the-whole-module)
-that half the app cannot see.
+Your bundle must contain exactly one copy of React and of each
+package `godminDedupe` lists. Two copies of React crash on the first
+hook. Two copies of these fail with no error:
+
+- `@wordpress/theme` renders components unthemed.
+- `@wordpress/i18n` renders English. [One copy of the
+  runtime](/translations/health/#one-copy-of-the-runtime) explains why.
+- `@gopherium/react-auth` keeps a
+  [configured transport](/authentication/react-integration/#one-setting-for-the-whole-module)
+  that half the app cannot see.
 
 The config handles this twice:
 
-- `godminDedupe` makes Vite resolve each of those packages once.
+- `godminDedupe` makes Vite resolve each listed package once.
 - `godminSingleCopy()` fails the build, naming the package and both
   paths, if a duplicate got through anyway.
 
