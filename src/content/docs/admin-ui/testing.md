@@ -89,13 +89,11 @@ Note that it is one global yes or no, not a width. Every query
 reports the same answer, so a component that distinguishes two
 breakpoints in a single render cannot be tested this way.
 
-## Asserting the React 19 patch
+## Checking the element package on React 19
 
-`@wordpress/element` needs a patch to load on React 19, explained
-in [build
-configuration](/admin-ui/build-and-versioning/#the-react-19-patch).
-Do not test that your patch file matches godmin's. Test the
-outcome, which is what decides whether your application runs:
+`@wordpress/element` 8.4.0 and older do not load on React 19. The
+design system versions godmin supports install a newer one. This
+test fails if an old copy comes back:
 
 ```ts
 import { assertElementPatched } from '@gopherium/godmin/testing'
@@ -106,7 +104,6 @@ test('element works on React 19', async () => {
 ```
 
 The assertion checks that the APIs React 19 removed are gone and
-that the rest still work, so it keeps passing once the upstream fix
-ships and the patch is deleted. By default it imports
-`@wordpress/element` itself, and it takes a loader argument when
-you need to point it at a specific copy.
+that `createRoot` and `createPortal` are still there. By default it
+imports `@wordpress/element` itself. Pass a loader to point it at a
+specific copy. The name comes from when a patch was needed.

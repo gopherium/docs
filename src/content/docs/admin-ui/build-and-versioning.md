@@ -1,6 +1,6 @@
 ---
 title: Build configuration and versioning
-description: The Vite config godmin needs, the React 19 patch, and which design system versions it supports.
+description: The Vite config godmin needs and the design system versions it supports.
 ---
 
 Most of what godmin needs from your build is this config:
@@ -14,8 +14,8 @@ export default defineConfig({
 })
 ```
 
-This page explains what each part does, then covers the React 19
-patch, stylesheet linting, and versioning.
+This page explains what each part does, then covers stylesheet
+linting and versioning.
 
 ## One copy of each shared package
 
@@ -32,18 +32,6 @@ The config handles this twice:
 - `godminSingleCopy()` fails the build, naming the package and both
   paths, if a duplicate got through anyway.
 
-One duplicate Vite cannot prevent: `@wordpress/element` up to 8.4.0
-installs its own React 18 next to your React 19. Close that hole by
-pinning React:
-
-```json
-{
-  "pnpm": {
-    "overrides": { "react": "^19.2.0", "react-dom": "^19.2.0" }
-  }
-}
-```
-
 ## Paint sooner
 
 Nothing renders until your stylesheet arrives, and bundlers request
@@ -58,26 +46,6 @@ and let it matter as your bundle grows.
 On a bundler that is not Vite or Rollup, the underlying functions
 `duplicateCopies` and `hoistStylesheet` are exported so you can wire
 both checks into whatever hooks it offers.
-
-## The React 19 patch
-
-`@wordpress/element` up to 8.4.0 does not load on React 19. The fix
-is a pnpm patch, and it has to live in your repository, because pnpm
-applies patches before `node_modules` exists. Copy godmin's:
-
-```sh
-cp node_modules/@gopherium/godmin/patches/*.patch patches/
-```
-
-```yaml
-patchedDependencies:
-  '@wordpress/element@8.4.0': patches/@wordpress__element@8.4.0.patch
-```
-
-Then assert the outcome in your tests with
-[`assertElementPatched`](/admin-ui/testing/#asserting-the-react-19-patch).
-This is temporary: the fix is merged upstream, and once a fixed
-release ships, the patch goes away.
 
 ## Lint your stylesheets
 
@@ -103,6 +71,17 @@ The window is exported for your tests:
 ```ts
 import { SUPPORTED_WPDS } from '@gopherium/godmin'
 ```
+
+## Upgrading from godmin 0.7.0
+
+godmin 0.7.0 and older asked you to copy a patch for
+`@wordpress/element`. Newer releases support design system versions
+that bring `@wordpress/element` 8.7.0 or newer, which needs no patch.
+
+Delete the patch file, its `patchedDependencies` entry and any build
+step that copies it. If your `package.json` lists
+`@wordpress/element`, move it to 8.7.0 too. A leftover entry makes
+`pnpm install` stop with `ERR_PNPM_UNUSED_PATCH`.
 
 ## License
 

@@ -35,7 +35,6 @@ duplicates something the packages above already ship.
 | `@gopherium/godmin/testing` | `installTestEnvironment`, `renderAdmin`, `setViewport`, `getAnnouncement`, `clearAnnouncements`, `assertElementPatched`, `WPDS_IGNORE_SELECTOR` |
 | `@gopherium/godmin/vite` | `godminDedupe`, `godminSingleCopy`, `duplicateCopies` |
 | `@gopherium/godmin/stylelint` | The design system stylelint rules |
-| `@gopherium/godmin/patches/*` | The React 19 patch file for `@wordpress/element`, copied at install time, temporary |
 
 All the design system packages are peer dependencies. A peer
 dependency is a package your application installs and pins itself.
@@ -134,5 +133,5 @@ whose login and user screens are built from the same design system.
 Read [framing an application](/admin-ui/framing-an-application/)
 next for the layout. And read
 [build configuration](/admin-ui/build-and-versioning/) before your
-first build, because the two install problems it covers are much
-easier to avoid than to debug.
+first build, because a duplicate package is much easier to avoid
+than to debug.
