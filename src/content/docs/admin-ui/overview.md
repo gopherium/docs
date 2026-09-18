@@ -75,6 +75,9 @@ That is the whole setup. Here is what those two lines do for you:
   will draw above your page instead of behind it.
 - Enable the overlay slot that lets design system overlays stack
   above `@wordpress/components` ones.
+- Give the page the design system's own blue as its accent, the
+  color of primary buttons, selected rows and focus rings. Pass
+  your own `color` to use another one.
 
 `AdminRoot` also accepts the `color`, `cursor` and `cornerRadius`
 theme settings, which it hands to the design system theme provider,
