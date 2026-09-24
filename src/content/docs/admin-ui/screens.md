@@ -85,6 +85,53 @@ what a TanStack Query infinite query looks like, but nothing here
 imports TanStack Query, so any object with those three works. The
 button disables itself while a page is loading.
 
+## RepeatRows
+
+`RepeatRows` edits a list of rows, such as visits with a date and a
+note each. Every row gets move up, move down and remove buttons, and
+an add button sits under the list.
+
+```tsx
+<RepeatRows
+	rows={visits}
+	onChange={setVisits}
+	blank={() => ({ date: '', note: '' })}
+	renderRow={(visit, update) => <VisitFields visit={visit} onChange={update} />}
+	rowLabel={(at) => `Visit ${at + 1}`}
+	labels={{ add: 'Add visit', empty: 'No visits yet.', moveUp: 'Move up', moveDown: 'Move down', remove: 'Remove' }}
+	max={10}
+/>
+```
+
+The list stays yours. The editor shows `rows` and hands every change
+to `onChange` as a new array. `min` and `max` only limit remove and
+add. They never trim or pad the rows you pass in.
+
+Set the new array right away, not inside `startTransition`. A click
+that lands before your render builds on the rows still shown, so the
+change before it would be lost.
+
+Keep each row object `onChange` gives you. The editor tells rows apart
+by identity, so a row rebuilt as a new object counts as a new row and
+its inputs start over.
+
+When a keyboard user removes a row, focus moves to the row that took
+its place, or to the row before it when the last row goes. When the
+only row goes, focus moves to the add button. When the add button
+makes a row, focus moves into it.
+
+`RowControls` is the move and remove buttons alone, and `useRowKeys`
+is the hook underneath, for a list that needs its own add step.
+
+## keyFromLabel
+
+`keyFromLabel` turns a label someone typed into a key for code.
+`keyFromLabel('Birth date', { style: 'camel' })` answers `birthDate`,
+and `kebab` style answers `birth-date`. Accents are dropped, and
+letters such as ß and ø are spelled in plain a to z. When the key is
+already in `taken`, the first free number is added, so `birthDate`
+becomes `birthDate2`.
+
 ## Stylesheet helpers
 
 `base.css` ships a few classes for layout jobs every admin screen
