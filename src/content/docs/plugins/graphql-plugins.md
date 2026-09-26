@@ -31,9 +31,9 @@ Add `"graphql": true` to the plugin's manifest:
 
 ```json
 {
-  "id": "whatsapp",
-  "name": "WhatsApp",
-  "backend": "github.com/you/myapp/plugins/whatsapp",
+  "id": "notes",
+  "name": "Notes",
+  "backend": "github.com/you/myapp/plugins/notes",
   "graphql": true
 }
 ```
@@ -145,11 +145,11 @@ Given a core and two graph plugins, the generated file contains:
 contributor owes:
 
 ```go
-// WhatsappGraphResolvers lists the resolver sets the whatsapp plugin contributes to the graph.
-type WhatsappGraphResolvers interface {
-	ContactResolvers() whatsapp.ContactResolvers
-	MutationResolvers() whatsapp.MutationResolvers
-	QueryResolvers() whatsapp.QueryResolvers
+// NotesGraphResolvers lists the resolver sets the notes plugin contributes to the graph.
+type NotesGraphResolvers interface {
+	ContactResolvers() notes.ContactResolvers
+	MutationResolvers() notes.MutationResolvers
+	QueryResolvers() notes.QueryResolvers
 }
 ```
 
