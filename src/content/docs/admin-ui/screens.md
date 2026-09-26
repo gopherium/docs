@@ -100,6 +100,65 @@ what a TanStack Query infinite query looks like, but nothing here
 imports TanStack Query, so any object with those three works. The
 button disables itself while a page is loading.
 
+## LogList
+
+`LogList` shows items one under the other, such as the dated notes
+kept on a record. Each `LogItem` has a header line, with a label at
+the start and room for actions at the end, then its text, then
+anything else you add:
+
+```tsx
+<h3 id="notes-heading">Notes</h3>
+<LogList aria-labelledby="notes-heading">
+	{notes.map((note) => (
+		<LogItem
+			key={note.id}
+			aria-label={`Note from ${note.shownAt}`}
+			label={<LogTime dateTime={note.at}>{note.shownAt}</LogTime>}
+			actions={
+				<Button
+					variant="minimal"
+					size="compact"
+					aria-label={`Edit the note from ${note.shownAt}`}
+					onClick={() => edit(note.id)}
+				>
+					Edit
+				</Button>
+			}
+			body={note.text}
+		/>
+	))}
+</LogList>
+```
+
+`aria-labelledby` takes the id of the heading above the list, and
+a screen reader names the list after that heading.
+
+`LogTime` shows a date or time as small muted text inside a `time`
+element. Give it the value in machine readable form as `dateTime`,
+and the words your reader sees as children. godmin formats nothing.
+
+The list keeps your order and never sorts, so pass the newest item
+first when the log reads that way. `body` is plain text and keeps its
+line breaks. Put anything richer, such as small "Label: value" lines,
+in the children under it.
+
+In a narrow column the actions move under the label and stay at the
+end of the line. No breakpoint decides this, so the list looks right
+in an aside and in the main column alike.
+
+A list with no items takes no room, so show your own empty sentence
+beside it. An item with no label and no actions has no header line,
+so you can swap a form in as its only child while someone edits it.
+
+An item's `aria-label` names the item, not the buttons inside it. A
+screen reader that lists the buttons on the page still shows every
+one of them as just Edit. So give each action its own name that says
+which item it acts on, as the example does.
+
+The list holds no state. Which item is being edited or waiting for a
+confirmation is yours to track, and so is focus.
+
 ## RepeatRows
 
 `RepeatRows` edits a list of rows, such as visits with a date and a
