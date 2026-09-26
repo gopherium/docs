@@ -23,6 +23,21 @@ a component of your own.
 `subtitle` renders under it, `actions` renders top right, and
 `className` and `children` do what they always do.
 
+`aside` adds a second column beside the content, for the details
+that sit next to a record's main work:
+
+```tsx
+<Page title="Invoice 1042" aside={<InvoiceDetails />}>
+	<InvoiceLines />
+</Page>
+```
+
+On a wide page the aside is 320px wide and sits right beside the
+content, which keeps a readable width of up to 720px. When the page
+is too narrow for both, the aside moves below the content. No
+breakpoint decides this, only the page's own width. An aside that
+renders nothing takes no room.
+
 A screen that fills the canvas edge to edge builds its own layout
 and uses `PageTitle` directly, so the page still gets exactly one
 `h1`:
