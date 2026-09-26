@@ -4,14 +4,17 @@ description: How the host migrates, starts, guards, and stops a fixed set of plu
 ---
 
 The host starts your plugins in a safe order, gives you what they
-declare, and shuts them down again:
+declare, and shuts them down again once your server stops:
 
 ```go
 host := pluginkit.NewHost(registered...)
 if err := host.Start(ctx); err != nil {
 	return err
 }
-defer host.Stop(ctx)
+serveErr := serve(ctx)
+stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), stopGrace)
+defer cancel()
+return errors.Join(serveErr, host.Stop(stopCtx))
 ```
 
 `NewHost` panics if two plugins share an id. That is a wiring
@@ -96,5 +99,8 @@ fails it keeps going and returns every error together, so a single
 bad shutdown never leaves the rest running.
 
 Call it before you close anything your plugins use, such as your
-database pool. Call it on both paths out of your program: the
-normal shutdown, and the one where your server returned an error.
+database pool. Call it once your server has stopped, cleanly or with
+an error. By then `ctx` is often cancelled. A plugin that gets it may
+skip its cleanup. `context.WithoutCancel` makes a copy that is not
+cancelled with `ctx`. `context.WithTimeout` gives that copy a time
+limit, `stopGrace`, from your settings.
