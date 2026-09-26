@@ -39,7 +39,7 @@ under [GraphQL plugins](/plugins/graphql-plugins/). It is a separate
 module, so applications without a graph never pull it in.
 
 The exact signatures are on
-[pkg.go.dev](https://pkg.go.dev/github.com/gopherium/pluginkit).
+[pkg.go.dev](https://pkg.go.dev/github.com/gopherium/framework/pluginkit).
 
 ## Your application owns the seam
 
@@ -52,7 +52,7 @@ receives when it starts:
 ```go
 package sdk
 
-import "github.com/gopherium/pluginkit"
+import "github.com/gopherium/framework/pluginkit"
 
 type Plugin   = pluginkit.Plugin
 type Migrator = pluginkit.Migrator
@@ -72,7 +72,9 @@ URL, your services, whatever plugins need.
 
 pluginkit is a sibling of [authentication](/authentication/overview/),
 extracted from a working product the same way, and it has no
-third-party dependencies.
+third-party dependencies. It lives in the framework repository as
+`github.com/gopherium/framework/pluginkit`. Releases up to 0.5.1
+came from `github.com/gopherium/pluginkit`, now archived.
 
 Read on with the [host lifecycle](/plugins/host-lifecycle/), then
 the [wiring generator](/plugins/wiring-and-manifests/).

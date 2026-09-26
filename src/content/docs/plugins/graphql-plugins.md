@@ -18,8 +18,9 @@ generator](/plugins/wiring-and-manifests/) exists to avoid.
 manifests, reads the schema each plugin ships, and generates a
 resolver root that stitches them together.
 
-It is a separate Go module, `github.com/gopherium/pluginkit/graphwire`,
-tagged `graphwire/vX.Y.Z`. It lives beside pluginkit rather than
+It is a separate Go module,
+`github.com/gopherium/framework/pluginkit/graphwire`, tagged
+`pluginkit/graphwire/vX.Y.Z`. It lives beside pluginkit rather than
 inside it because it needs a GraphQL parser, and pluginkit's own
 promise is that it depends on nothing but the standard library.
 Applications with no GraphQL API never pull the parser in.
@@ -130,6 +131,12 @@ generates a `package main` file with unexported names instead. A
 named package is the usual choice, because only that form generates
 `FromPlugins`, described below.
 
+Each plugin id becomes an import name in the generated file, so
+`Run` refuses a few ids: a Go keyword, `core`, `graph`, `init`, and
+the last part of `CoreImport`. A named package also keeps `sdk`,
+`errors`, `error` and `nil` for itself, and a `package main` file
+keeps `main`.
+
 ## What you get back
 
 Given a core and two graph plugins, the generated file contains:
@@ -189,16 +196,15 @@ in. Hand that same slice to `FromPlugins` and to the
 
 ```go
 registered, err := registerPlugins(sdk.Deps{DatabaseURL: url, Getenv: os.Getenv})
+host := pluginkit.NewHost(registered...)
 if err != nil {
-	return err
+	return errors.Join(err, host.Stop(ctx))
 }
 
 root, err := graphroot.FromPlugins(coreResolvers, registered)
 if err != nil {
-	return err
+	return errors.Join(err, host.Stop(ctx))
 }
-
-host := pluginkit.NewHost(registered...)
 ```
 
 Adding a GraphQL plugin is then the same as adding any other: a

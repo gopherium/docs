@@ -8,7 +8,7 @@ declare, and shuts them down again once your server stops:
 
 ```go
 host := pluginkit.NewHost(registered...)
-if err := host.Start(ctx); err != nil {
+if err := host.Start(ctx, stopGrace); err != nil {
 	return err
 }
 serveErr := serve(ctx)
@@ -17,9 +17,22 @@ defer cancel()
 return errors.Join(serveErr, host.Stop(stopCtx))
 ```
 
-`NewHost` panics if two plugins share an id. That is a wiring
-mistake rather than a runtime condition, so it fails immediately at
-startup instead of misbehaving later.
+`stopGrace` is how long plugins get to stop. It comes from your own
+settings. `NewHost` panics if two plugins share an id, so that
+wiring mistake shows at startup.
+
+## What a plugin does at each step
+
+- `Register` is the function the
+  [wiring generator](/plugins/wiring-and-manifests/#what-each-plugin-must-provide)
+  calls in each plugin's package. It checks the plugin's settings
+  and builds the plugin. It never touches the network or the
+  database.
+- `Start` connects to what the plugin needs.
+- `Migrate` runs before `Start`, and `Seed` runs without it, so
+  neither can use anything `Start` sets up.
+- `Stop` releases what the plugin holds. It must work even when
+  `Start` never ran, and return by the time its context ends.
 
 ## Start
 
@@ -30,27 +43,37 @@ startup instead of misbehaving later.
 - Plugins start in the order they were registered.
 - If one fails to start, the host stops the ones already started, in
   reverse order, then returns the original failure along with any
-  errors from stopping. You never end up half started.
+  errors from stopping. Those stops get `stopGrace`, even when `ctx`
+  has already ended. You never end up half started.
 - If a plugin panics, the host turns it into an ordinary error
   naming the plugin and what it was doing. One bad plugin cannot
   bring down the process.
 
-## Seed
+`Start` returns an error when `stopGrace` is zero or less, before
+any migration runs.
 
-Sample data is not part of booting. `Seed` is a separate call, so a
-production start never writes it:
+## Migrate and Seed
+
+Two calls work on the database without starting any plugin:
 
 ```go
+if err := host.Migrate(ctx); err != nil {
+	return err
+}
 if err := host.Seed(ctx); err != nil {
 	return err
 }
 ```
 
-Plugins seed in registration order, and the first failure stops the
-run. A plugin that panics becomes an error naming it, the same
-protection `Start` has. Plugins without the capability are simply
-skipped. Call `Seed` from a development subcommand of your binary,
-never from the serve path.
+`Migrate` runs the same migrations that `Start` runs first. Use it
+in a command that only prepares the database. `Seed` fills in
+sample data. `Start` never calls it, so call it from a development
+command, never when your server starts.
+
+Both go through the plugins in registration order, stop at the
+first failure, and turn a panic into an error as `Start` does.
+`Migrate` skips plugins that are not a `Migrator`, and `Seed` skips
+those that are not a `Seeder`.
 
 ## Routes and public paths
 
@@ -81,15 +104,11 @@ for id, handler := range host.Routes() {
 The pattern ends with a slash, so the mux sends every path under the
 prefix to the plugin.
 
-Three things to know about the matching:
-
-- A public path must match exactly. There is no prefix or wildcard
-  matching, so nothing is accidentally exposed.
-- A match applies to every HTTP method.
-- Public paths are written relative to the plugin's namespace, so
-  `/webhook` and not the full URL. That is because `StripPrefix`
-  has already removed the prefix by the time `Protect` sees the
-  request.
+A public path must match exactly, so nothing is exposed by
+accident. A match lets every HTTP method through, not only the one
+your webhook uses. Write the path relative to the plugin's
+namespace, so `/webhook` and not the full URL. `StripPrefix` has
+already removed the prefix by the time `Protect` sees the request.
 
 The middleware is any `func(http.Handler) http.Handler`. The
 example above uses `RequireSession` from
@@ -97,13 +116,14 @@ example above uses `RequireSession` from
 
 ## Stop
 
-`Stop` shuts plugins down in reverse registration order. If one
-fails it keeps going and returns every error together, so a single
-bad shutdown never leaves the rest running.
+`Stop` shuts every plugin down in reverse registration order, even
+one that never started. If one fails it keeps going and returns
+every error together, so a single bad shutdown never leaves the rest
+running.
 
+Call it once your server has stopped, cleanly or with an error.
 Call it before you close anything your plugins use, such as your
-database pool. Call it once your server has stopped, cleanly or with
-an error. By then `ctx` is often cancelled. A plugin that gets it may
-skip its cleanup. `context.WithoutCancel` makes a copy that is not
-cancelled with `ctx`. `context.WithTimeout` gives that copy a time
-limit, `stopGrace`, from your settings.
+database pool. By then `ctx` is often cancelled, and a plugin handed
+it may skip its cleanup. So the example builds a new context.
+`context.WithoutCancel` copies `ctx` without its cancel, and
+`context.WithTimeout` gives that copy a limit of `stopGrace`.

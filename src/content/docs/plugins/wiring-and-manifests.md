@@ -22,7 +22,7 @@ Every plugin directory holds a `plugin.json` describing itself:
 
 | Field | Meaning |
 | --- | --- |
-| `id` | Lowercase, and must match the directory name |
+| `id` | Lowercase, matching the directory name, and not a [refused id](#ids-the-generator-refuses) |
 | `name` | The human readable name |
 | `backend` | The plugin's Go import path |
 | `frontend` | The plugin's UI module, if it has one |
@@ -39,7 +39,7 @@ Your application carries a small command of its own: one
 ```go
 package main
 
-import "github.com/gopherium/pluginkit/wire"
+import "github.com/gopherium/framework/pluginkit/wire"
 
 var config = wire.Config{
 	SDKImport:    "github.com/you/myapp/sdk",
@@ -57,11 +57,9 @@ func main() {
 ```
 
 `Run` reads every manifest and writes two files: one Go, one
-TypeScript. `License` sets the SPDX header on both. Add `TSLicense`
-when your frontend ships under a different license than your
-backend, and it applies to the TypeScript file only. Every field is
-documented on
-[pkg.go.dev](https://pkg.go.dev/github.com/gopherium/pluginkit/wire).
+TypeScript. `License` sets the SPDX header on both, and `TSLicense`,
+when set, replaces it on the TypeScript file. Every field is on
+[pkg.go.dev](https://pkg.go.dev/github.com/gopherium/framework/pluginkit/wire).
 
 ### More than one plugin folder
 
@@ -72,9 +70,8 @@ to read instead, in order:
 Roots: []string{"plugins", "extra/plugins"},
 ```
 
-Each folder is read in full before the next. A plugin id that appears
-in two folders is an error, so two folders can never fight over one
-name.
+Each folder is read in full before the next, and an id found in two
+folders is an error.
 
 ### A registry for tests
 
@@ -88,8 +85,32 @@ GoRegistryPackage: "registry",
 ```
 
 The file holds one function, `All(deps sdk.Deps) ([]sdk.Plugin, error)`,
-returning every plugin in registration order. Setting only one of the
-two fields is an error.
+returning every plugin in registration order. Like `registerPlugins`
+below, it still returns the ones that registered when some fail.
+Setting only one of the two fields is an error.
+
+### Ids the generator refuses
+
+Each plugin id becomes an import name in the generated files, so a
+few ids cannot work there. `Run` stops with an error naming the
+manifest when a plugin uses one:
+
+- A plugin with a `backend` cannot use a Go keyword, or `errors`,
+  `fmt`, `sdk`, `deps`, `plugins`, `failed`, `err`, `make`,
+  `append`, `nil`, `error`, `init` or `main`.
+- A plugin with a `frontend` cannot use a JavaScript reserved word
+  such as `class` or `let`, or `eval`, `arguments` or `plugins`.
+
+`Reserved` lists more ids that no plugin may take, such as the
+names of your own commands:
+
+```go
+Reserved: []string{"serve", "migrate"},
+```
+
+An id can also clash with a name your own code declares in the
+same package as the generated Go file, such as a function called
+`run`. Your compiler reports that one.
 
 ## What each plugin must provide
 
@@ -103,7 +124,10 @@ func Register(deps sdk.Deps) (*Plugin, error)
 ```
 
 The returned value has to satisfy `sdk.Plugin`. Every result is
-gathered into a generated `registerPlugins` function.
+gathered into a generated `registerPlugins` function. When some
+plugins fail to register, it still returns the ones that did, along
+with a single error that names every failure. The file imports your
+SDK under the name `sdk`, whatever your package is called.
 
 The generated TypeScript file imports an export named `plugin` from
 each frontend module and collects them into a typed array.
@@ -116,8 +140,11 @@ Your server builds a `Deps`, passes it to the generated
 
 ```go
 registered, err := registerPlugins(sdk.Deps{DatabaseURL: url, Getenv: os.Getenv})
-if err != nil {
-	return err
-}
 host := pluginkit.NewHost(registered...)
+if err != nil {
+	return errors.Join(err, host.Stop(ctx))
+}
 ```
+
+When a plugin fails to register, the example still stops the ones
+that did, so nothing they built is left behind.

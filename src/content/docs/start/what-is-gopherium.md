@@ -59,8 +59,8 @@ of compile-time plugins:
 
 | Brick | What it is |
 | --- | --- |
-| [`pluginkit`](https://pkg.go.dev/github.com/gopherium/pluginkit) | A compile-time plugin host, a wiring generator, and a route guard |
-| [`pluginkit/graphwire`](https://pkg.go.dev/github.com/gopherium/pluginkit/graphwire) | Generates a GraphQL resolver root so plugins can extend one graph |
+| [`pluginkit`](https://pkg.go.dev/github.com/gopherium/framework/pluginkit) | A compile-time plugin host, a wiring generator, and a route guard |
+| [`pluginkit/graphwire`](https://pkg.go.dev/github.com/gopherium/framework/pluginkit/graphwire) | Generates a GraphQL resolver root so plugins can extend one graph |
 
 **[Admin UI](/admin-ui/overview/)** is the React side of an admin
 application:
