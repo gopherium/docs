@@ -74,9 +74,12 @@ public paths through:
 for id, handler := range host.Routes() {
 	prefix := "/api/plugins/" + id
 	guarded := pluginkit.Protect(handler, host.PublicPaths()[id], auth.RequireSession)
-	router.Mount(prefix, http.StripPrefix(prefix, guarded))
+	mux.Handle(prefix+"/", http.StripPrefix(prefix, guarded))
 }
 ```
+
+The pattern ends with a slash, so the mux sends every path under the
+prefix to the plugin.
 
 Three things to know about the matching:
 
