@@ -58,6 +58,12 @@ It takes a `Date` or the text a server stored, and returns an empty
 string for an empty input, so a missing date renders as nothing
 rather than as `Invalid Date`.
 
+A bare calendar day, such as a due date stored as `2026-09-01`, shows
+on that day for every reader, wherever they are. A full timestamp,
+such as `2026-09-01T03:00:00Z`, is a moment, so it shows in the
+reader's own time zone. For a reader in Los Angeles that one is still
+August 31.
+
 It renders the date only. The options are the
 [`Intl.DateTimeFormatOptions`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
 that `toLocaleDateString` accepts: `dateStyle` and the individual
