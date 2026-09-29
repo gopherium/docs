@@ -32,10 +32,12 @@ that sit next to a record's main work:
 </Page>
 ```
 
-On a wide page the aside is 320px wide and sits right beside the
-content, which keeps a readable width of up to 720px. When the page
-is too narrow for both, the aside moves below the content. No
-breakpoint decides this, only the page's own width. An aside that
+On a wide page the content keeps a 560px column and the aside takes
+the rest of the width, so the aside is the part that grows with the
+screen. Put the record's own details in the content and its longer
+lists, such as a history, in the aside. When the page is too narrow
+for both, the aside moves below the content and both fill the page.
+No breakpoint decides this, only the page's own width. An aside that
 renders nothing takes no room.
 
 A screen that fills the canvas edge to edge builds its own layout
@@ -47,6 +49,20 @@ and uses `PageTitle` directly, so the page still gets exactly one
 ```
 
 Pass `variant` to change the text size.
+
+## SectionTitle
+
+`SectionTitle` heads a section inside a page, one size step above
+the field labels, so a section never reads like another label:
+
+```tsx
+<SectionTitle>Identities</SectionTitle>
+```
+
+It renders an `h2`. Pass `level={3}` for a section inside a section,
+which renders an `h3` a size smaller. `id` and `tabIndex` pass through
+to the heading, so a screen can name a list after it or move focus to
+it.
 
 ## NavScreen
 
@@ -162,8 +178,11 @@ confirmation is yours to track, and so is focus.
 ## RepeatRows
 
 `RepeatRows` edits a list of rows, such as visits with a date and a
-note each. Every row gets move up, move down and remove buttons, and
-an add button sits under the list.
+note each. Every row sets its inputs on one line with a move up
+arrow, a move down arrow and a trash icon at the end, and an add
+button sits under the list. In a narrow list the arrows and the
+trash drop under the inputs, still at the end. Wrap a row's inputs
+in a `godmin-form__row` to set them side by side as well.
 
 ```tsx
 <RepeatRows
@@ -213,11 +232,33 @@ runs into:
 
 | Class | For |
 | --- | --- |
-| `godmin-form` | A single column form at a readable width |
+| `godmin-form` | A single column form, up to 560px wide |
+| `godmin-form--inline` | A form that is one row, filling its column |
+| `godmin-form__row` | Short fields side by side inside a form |
+| `godmin-form__grow` | The field of a row that takes most of the free room |
 | `godmin-empty` | A centered empty state with breathing room |
 | `godmin-table` | A full width table with collapsed borders |
 | `godmin-table__actions` | The narrow trailing cell holding row actions |
 | `godmin-table-scroll` | The box a wide table scrolls inside |
+
+A form row puts short fields and a button on one line:
+
+```tsx
+<form className="godmin-form godmin-form--inline">
+	<div className="godmin-form__row">
+		<InputControl className="godmin-form__grow" label="Title" />
+		<InputControl label="Due date" type="date" />
+		<Button type="submit">Add</Button>
+	</div>
+</form>
+```
+
+Each field starts from 160px and they share the rest of the line. The
+button keeps its own width. When the line is too narrow, the fields
+wrap onto the next line, and a button left alone sits at the end of
+its line. A form that is only one row takes `godmin-form--inline`, so
+it fills its column instead of stopping at 560px. In a stacked form,
+a button keeps its own width instead of stretching across the form.
 
 `godmin-table` and `godmin-table-scroll` are a pair, and they solve
 a phone problem: a table wider than the screen drags the whole page
