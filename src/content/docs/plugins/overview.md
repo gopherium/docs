@@ -38,6 +38,9 @@ A plugin that serves a GraphQL API has a fifth option, described
 under [GraphQL plugins](/plugins/graphql-plugins/). It is a separate
 module, so applications without a graph never pull it in.
 
+A plugin can also offer commands on your program's command line.
+[Plugin commands](/command-line/plugin-commands/) shows how.
+
 The exact signatures are on
 [pkg.go.dev](https://pkg.go.dev/github.com/gopherium/framework/pluginkit).
 
@@ -54,7 +57,7 @@ package sdk
 
 import "github.com/gopherium/framework/pluginkit"
 
-type Plugin   = pluginkit.Plugin
+type Plugin = pluginkit.Plugin
 type Migrator = pluginkit.Migrator
 
 type Deps struct {

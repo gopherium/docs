@@ -68,7 +68,9 @@ if err := host.Seed(ctx); err != nil {
 `Migrate` runs the same migrations that `Start` runs first. Use it
 in a command that only prepares the database. `Seed` fills in
 sample data. `Start` never calls it, so call it from a development
-command, never when your server starts.
+command, never when your server starts. On
+[`gonsole`](/command-line/plugin-commands/), the `migrate` and
+`seed -yes` commands make both calls for you.
 
 Both go through the plugins in registration order, stop at the
 first failure, and turn a panic into an error as `Start` does.
@@ -127,3 +129,6 @@ database pool. By then `ctx` is often cancelled, and a plugin handed
 it may skip its cleanup. So the example builds a new context.
 `context.WithoutCancel` copies `ctx` without its cancel, and
 `context.WithTimeout` gives that copy a limit of `stopGrace`.
+
+[`gonsole.Serve`](/command-line/serving/) builds that context for
+you. Pass it `host.Stop` and it calls it once the server is down.

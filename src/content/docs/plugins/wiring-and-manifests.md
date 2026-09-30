@@ -102,10 +102,14 @@ manifest when a plugin uses one:
   such as `class` or `let`, or `eval`, `arguments` or `plugins`.
 
 `Reserved` lists more ids that no plugin may take, such as the
-names of your own commands:
+names of your own commands. On [`gonsole`](/command-line/plugin-commands/),
+pass its seven base commands and your own namespaces:
 
 ```go
-Reserved: []string{"serve", "migrate"},
+Reserved: []string{
+	"help", "list", "version", "check", "serve", "migrate", "seed",
+	"account", "report",
+},
 ```
 
 An id can also clash with a name your own code declares in the
