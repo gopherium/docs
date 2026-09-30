@@ -1,6 +1,6 @@
 ---
 title: Coverage harness
-description: Making main() and CLI subcommands count toward your Go test coverage.
+description: Making main() and CLI commands count toward your Go test coverage.
 ---
 
 Ordinary Go tests never run your `main()`. So if you aim for 100%
@@ -32,33 +32,35 @@ Three pieces:
 
 Tests that run the binary should only do so when the harness set them
 up. Otherwise a plain `go test ./...` would need a built binary and
-extra environment, and would be slow and fragile:
+extra environment, and would be slow and fragile.
+
+[`testkit.CoverBinary`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/testkit#CoverBinary)
+is that helper. It skips the test unless `MYAPP_COVER_BINDIR` and
+`MYAPP_COVER_GOCOVERDIR` are set. Otherwise it returns the binary's
+path and a child environment that sends the counters to the harness
+directory:
 
 ```go
-// coverBinary returns the instrumented binary path and a child
-// environment pointing its counters at the harness directory.
-func coverBinary(t *testing.T) (string, []string) {
-	t.Helper()
-	binary := os.Getenv("MYAPP_COVER_BINDIR")
-	coverDir := os.Getenv("MYAPP_COVER_GOCOVERDIR")
-	if binary == "" || coverDir == "" {
-		t.Skip("skipping binary test outside the coverage harness")
+func TestBinaryRefusesAnUnknownCommand(t *testing.T) {
+	binary, env := testkit.CoverBinary(t, "MYAPP_", "myapp")
+	cmd := exec.Command(binary, "nope")
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "unknown command") {
+		t.Fatalf("got %v %s", err, out)
 	}
-	env := []string{"GOCOVERDIR=" + coverDir}
-	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, "MYAPP_") && !strings.HasPrefix(entry, "GOCOVERDIR=") {
-			env = append(env, entry)
-		}
-	}
-	return filepath.Join(binary, "myapp"), env
 }
 ```
 
-Notice the loop removing every `MYAPP_` variable from the child's
-environment. That is deliberate. If a developer has the application's
-config exported in their shell, it would leak into the child process,
-and a test checking that missing config fails would pass for the wrong
-reason.
+The example program runs on [`gonsole`](/command-line/overview/),
+which answers an unknown command with exit 2 and an `unknown command`
+line.
+
+The child's environment holds no `MYAPP_` variable at all. That is
+deliberate. If a developer has the application's config exported in
+their shell, it would leak into the child process, and a test
+checking that missing config fails would pass for the wrong reason.
+Append the settings a test needs to `env` yourself.
 
 ## The Makefile target
 
