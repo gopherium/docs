@@ -48,6 +48,18 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Command line',
+					items: [
+						{ slug: 'command-line/overview' },
+						{ slug: 'command-line/writing-commands' },
+						{ slug: 'command-line/serving' },
+						{ slug: 'command-line/plugin-commands' },
+						{ slug: 'command-line/account-commands' },
+						{ slug: 'command-line/operator-conventions' },
+						{ slug: 'command-line/testing' },
+					],
+				},
+				{
 					label: 'Admin UI',
 					items: [
 						{ slug: 'admin-ui/overview' },
