@@ -41,7 +41,7 @@ describes code that is running in production today.
 
 ## What exists today
 
-Three capabilities are on the shelf.
+These capabilities are on the shelf.
 
 **[Authentication](/authentication/overview/)** is the largest, and
 is five modules so you can stop at whichever layer suits you:
@@ -62,12 +62,34 @@ of compile-time plugins:
 | [`pluginkit`](https://pkg.go.dev/github.com/gopherium/framework/pluginkit) | A compile-time plugin host, a wiring generator, and a route guard |
 | [`pluginkit/graphwire`](https://pkg.go.dev/github.com/gopherium/framework/pluginkit/graphwire) | Generates a GraphQL resolver root so plugins can extend one graph |
 
+**[Command line](/command-line/overview/)** runs your program's
+commands, from `serve` to your own:
+
+| Brick | What it is |
+| --- | --- |
+| [`gonsole`](https://pkg.go.dev/github.com/gopherium/framework/gonsole) | Commands with help, dry runs and exit codes, settings, and a server that shuts down gracefully |
+| [`gonsole/auth`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth) | Ready account commands, from the first admin to disabling an account |
+
 **[Admin UI](/admin-ui/overview/)** is the React side of an admin
 application:
 
 | Brick | What it is |
 | --- | --- |
 | [`@gopherium/godmin`](https://www.npmjs.com/package/@gopherium/godmin) | The base layer for an admin app on the WordPress Design System |
+
+**[Translations](/translations/overview/)** shows your interface in
+more than one language:
+
+| Brick | What it is |
+| --- | --- |
+| [`@gopherium/gottext`](https://www.npmjs.com/package/@gopherium/gottext) | Loads a language in the browser, builds and checks the catalogues, and syncs them with a translation platform |
+
+**[Mail](/mail/overview/)** sends application mail, such as
+invitations and password resets:
+
+| Brick | What it is |
+| --- | --- |
+| [`mailkit`](https://pkg.go.dev/github.com/gopherium/framework/mailkit) | Mail templates, an SMTP sender, and a test double |
 
 Pick whichever you need, or jump straight to the
 [Quickstart](/start/quickstart/), which builds a working login.
