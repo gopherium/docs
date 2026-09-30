@@ -64,20 +64,30 @@ the proxy and the applications it fronts.
 ## 3. Create the first admin with the binary
 
 A fresh database has no users, and creating a user requires being
-logged in. `authkitpg.RunCreateAdmin` backs a subcommand of your own
-binary to break that circle. It parses the account flags, migrates the
-auth schema, and reads the password as a single line from stdin.
+logged in. A command of your own binary breaks that circle. With
+[`gonsole`](/command-line/overview/) it is
+[`account:create-admin`](/command-line/account-commands/). It parses
+the account flags, runs every step in `Program.Migrations`, and reads
+the password as a single line from stdin. List
+`accounts.Migration()` there, so the auth schema exists.
 
 It needs no shell and no extra tooling, so it works even in a
-distroless image:
+distroless image. A terminal shows the password as you type it, so
+pipe it in:
 
 ```sh
-docker compose exec myapp /myapp createadmin \
-  -email admin@example.com -name "Maria Perez" -role admin
+printf '%s\n' "$PASSWORD" | docker compose exec -T myapp \
+  /myapp account:create-admin \
+  -email maria.perez@example.com -name "Maria Perez" -role admin
 ```
 
+`-T` tells `docker compose exec` not to open a terminal, so the pipe
+reaches the command. A program without gonsole gets the same command
+from `authkitpg.RunCreateAdmin`, which migrates the auth schema
+itself.
+
 Never create that first account by inserting database rows by hand.
-The subcommand validates the input, hashes the password properly, and
+The command validates the input, hashes the password properly, and
 makes sure the schema exists before it writes.
 
 ## 4. Run both migrators, library first
@@ -98,6 +108,10 @@ if err := appMigrate(ctx, databaseURL); err != nil {
 
 Two sets of migrations sharing one tracking table will each misread
 the other's entries as their own, and corrupt both histories.
+
+With gonsole, list both as steps in `Program.Migrations`, the
+library's first. `serve` never runs them, so run `myapp migrate`
+before each release starts. It applies them in that order.
 
 Any other module that owns database tables follows the same rule with
 its own table. Plugins are the common case, and the

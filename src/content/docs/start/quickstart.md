@@ -79,8 +79,8 @@ func main() {
 ```
 
 A fresh database has no users, and creating one requires being
-logged in, so you need a way in. Add a subcommand to your binary for
-it. `RunCreateAdmin` is the entire subcommand, handling the flags,
+logged in, so you need a way in. Add a command to your binary for
+it. `RunCreateAdmin` is the entire command, handling the flags,
 the migration and the password prompt. The `-role` flag names what
 the account may do, and `admin` is the role the server above admits
 to the user routes:
@@ -88,6 +88,10 @@ to the user routes:
 ```go
 err := authkitpg.RunCreateAdmin(ctx, databaseURL, os.Args[2:], os.Stdin, os.Stdout)
 ```
+
+If your command line runs on [`gonsole`](/command-line/overview/),
+the [account commands](/command-line/account-commands/) give you
+`myapp account:create-admin` ready made.
 
 ## Frontend
 

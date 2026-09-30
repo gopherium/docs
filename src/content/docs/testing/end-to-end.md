@@ -148,7 +148,8 @@ would then prove nothing.
 ## Seeding the admin account
 
 Use a separate database so resetting it never touches your development
-data, and create the account with the same subcommand production uses:
+data, and create the account with the same command production uses.
+On gonsole that is [`account:create-admin`](/command-line/account-commands/):
 
 ```make
 E2E_DATABASE_URL ?= postgres://postgres:postgres@localhost:5434/myapp_e2e?sslmode=disable
@@ -164,7 +165,7 @@ e2e-db-reset:
 e2e-seed: build
 	printf '%s\n' "$(E2E_PASSWORD)" | \
 		MYAPP_DATABASE_URL="$(E2E_DATABASE_URL)" \
-		./myapp createadmin -email "$(E2E_EMAIL)" -name "$(E2E_NAME)" -role admin
+		./myapp account:create-admin -email "$(E2E_EMAIL)" -name "$(E2E_NAME)" -role admin
 ```
 
 Those credentials appear in three places: the test environment module,

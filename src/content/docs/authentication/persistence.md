@@ -104,7 +104,7 @@ one you can recreate from scratch.
   returns how many it changed. It refuses an empty role with
   `gouncer.ErrEmptyRole`, and running it twice changes nothing the
   second time. The [grandfathering
-  subcommand](/authentication/user-administration/#giving-a-role-to-accounts-that-hold-none)
+  command](/authentication/user-administration/#giving-a-role-to-accounts-that-hold-none)
   is built on it.
 - Every read of a user, by email, by id or by session, carries the
   role the account holds.

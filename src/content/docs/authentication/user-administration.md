@@ -8,7 +8,7 @@ account lists that leak hashes, disable flows that leave stolen
 sessions alive, bootstrap scripts that bypass validation. authkit
 ships it once. This page covers the admin routes, the role every
 account holds, the guard that keeps the last administrator standing,
-and the three ways to create the first account.
+and the ways to create the first account.
 
 ## The admin surface
 
@@ -145,10 +145,19 @@ timeout, and the logger are `ReaperConfig` fields with defaults.
 ## Bootstrapping the first admin
 
 User creation sits behind a login, and a fresh database has no
-users. Three entry points, layered by convenience. All three take the
-role the account starts under, and all three refuse an empty one, so
-a fresh installation never holds an account nobody can administer
-with.
+users. A program whose command line runs on
+[`gonsole`](/command-line/overview/) gets a ready command from the
+[account commands](/command-line/account-commands/):
+
+```sh
+printf '%s\n' "$PASSWORD" | myapp account:create-admin \
+  -email maria.perez@example.com -name "Maria Perez" -role admin
+```
+
+Without gonsole there are three entry points, layered by
+convenience. All three take the role the account starts under, and
+all three refuse an empty one, so a fresh installation never holds
+an account nobody can administer with.
 
 `authkit.CreateAdmin` is the primitive. It prompts for a password on
 stdin, validates, and stores against any `gouncer.Store`:
@@ -157,7 +166,7 @@ stdin, validates, and stores against any `gouncer.Store`:
 err := authkit.CreateAdmin(ctx, store, email, name, "admin", os.Stdin, os.Stdout)
 ```
 
-With `authkit/postgres`, `RunCreateAdmin` is the whole subcommand:
+With `authkit/postgres`, `RunCreateAdmin` is the whole command:
 the `-email`, `-name` and `-role` flags, the pool, the auth-schema
 migration, then `CreateAdmin`:
 
@@ -186,18 +195,31 @@ created, err := authkit.EnsureAdmin(ctx, store, email, name, password, "admin")
 An installation that existed before it adopted roles has accounts with
 an empty role. Once the admin routes name a privileged set, those
 accounts can no longer administer anything, including themselves.
-`RunGrantRole` is the subcommand that brings them across. It gives the
+The `account:grant-role` command brings them across. It gives the
 named role to every account holding none, leaves every account that
 already holds one alone, and reports how many it changed:
+
+```sh
+myapp account:grant-role -role admin -yes
+```
+
+Without `-yes` it only reports how many it would change. If your
+account commands set a `Capability`, it also wants `-as <email>`, and
+your `Authorize` checks that account first, even on a dry run. An
+account without a role can fail that check. Then create an admin
+with `account:create-admin` and act as it.
+
+A program without gonsole calls `RunGrantRole` from its own command
+instead:
 
 ```go
 err := authkitpg.RunGrantRole(ctx, databaseURL, os.Args[2:], os.Stdout)
 ```
 
-Run as `myapp grantrole -role admin`, it is safe to run twice. The
-second run finds no account without a role and grants nothing. Behind
-it sits `UserStore.GrantRoleToRoleless(ctx, role)`, which returns the
-count and refuses an empty role.
+Both are safe to run twice. The second run finds no account without
+a role and grants nothing. Behind both sits
+`UserStore.GrantRoleToRoleless(ctx, role)`, which returns the count
+and refuses an empty role.
 
 This is deliberately a command an operator runs, not a migration that
 runs itself. A migration would fire again on every fresh deploy, and
