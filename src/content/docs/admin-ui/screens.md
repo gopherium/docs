@@ -214,7 +214,9 @@ only row goes, focus moves to the add button. When the add button
 makes a row, focus moves into it.
 
 `RowControls` is the move and remove buttons alone, and `useRowKeys`
-is the hook underneath, for a list that needs its own add step.
+is the hook underneath, for a list that needs its own add step. The
+trash sits a little apart from the arrows, so a press that lands
+slightly off does not remove a row.
 
 ## keyFromLabel
 
@@ -271,8 +273,16 @@ instead:
 </div>
 ```
 
-The scroll rule only activates below 640px. On a desktop the
-wrapper does nothing, so you can mark up every table this way.
+The scroll rule only activates below 640px. There the actions
+column, the cell marked `godmin-table__actions`, stays pinned to the
+right edge, so a row's buttons are in view before any scroll. On a
+desktop the wrapper only draws a focus ring when a keyboard user
+reaches it, so you can mark up every table this way.
+
+Every `godmin-table` row takes a light tint under the pointer and
+while keyboard focus is inside it, so a reader can tell which row a
+button belongs to. `RowControls` in the actions cell sit at its right
+edge, so they stay put when the column widens.
 
 Two details in that snippet matter:
 

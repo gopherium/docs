@@ -39,7 +39,9 @@ duplicates something the packages above already ship.
 All the design system packages are peer dependencies. A peer
 dependency is a package your application installs and pins itself.
 You stay in control of the exact design system versions you run,
-and godmin never redistributes them.
+and godmin never redistributes them. From 0.13.0 that includes
+`@wordpress/icons`, which draws the arrows and the trash of
+`RowControls`.
 
 ## Setup
 
