@@ -91,9 +91,17 @@ gets the database address, such as
 in order and prints `migrated reports`. `Migrates: true` runs them
 before a command too, but never on a dry run.
 
-Set `Program.Lock` to a function that takes a database lock and
-returns its release. gonsole holds it around every migration, so two
-`migrate` runs never overlap.
+A step that runs
+[goose](https://pkg.go.dev/github.com/pressly/goose/v3), a
+migration tool, turns on goose's session locker. The locker holds a
+database lock on the connection that runs the migrations, so a
+second `migrate` run waits its turn. Pass `goose.WithSessionLocker`
+a locker from goose's `lock.NewPostgresSessionLocker`.
+
+`Program.Lock` is for a program whose steps take no lock of their
+own. It takes a lock and returns its release, and gonsole holds it
+around every migration. Never set both, or a step can wait on the
+program's own lock.
 
 ## Renamed commands
 
@@ -109,25 +117,35 @@ The acting account is the account of the person who runs the
 command. Set `Capability` to a permission it must hold, such as
 `manage_reports`. The command then wants `-as <email>`, which `Run`
 reads as `call.Actor`. gonsole does not look the account up. Your
-program does, in two functions it sets on `Program`:
+program does, in two functions it sets on `Program`.
+
+A program whose accounts live in the
+[`authkit/postgres` store](/authentication/persistence/) takes both
+from `gonsole/auth`, imported as `accounts`:
 
 ```go
-Authorize: func(ctx context.Context, call gonsole.Call, capability string) error {
-	return checkAccount(ctx, strings.ToLower(strings.TrimSpace(call.Actor)), capability)
+Migrations: []gonsole.Step{
+	accounts.Migration(),
+	accounts.RecordMigration(),
+	{Name: "reports", Run: migrateReports},
 },
-Record: func(ctx context.Context, call gonsole.Call, command string) error {
-	return storeAudit(ctx, call.Actor, command, call.Args, call.Flags)
-},
+Authorize: accounts.Authorize(cfg),
+Record:    accounts.Record(cfg),
 ```
 
-`Authorize` runs before `Run`, on dry runs too. Its error exits 1.
-`call.Actor` holds the address exactly as typed, so trim it and
-lower-case it before the lookup.
+`cfg` is the `accounts.Config` of your account commands.
+`Authorize` lets an account act only when it is enabled and its role
+carries the capability in `Roles.Capabilities`. `Record` stores each
+change in a table that the `RecordMigration` step creates.
+[Account commands](/command-line/account-commands/#an-acting-account)
+has the details.
 
-`Record` stores who ran what, for an audit, a log of every change.
-It runs after every successful run of a command that names a
-capability, except a dry run. The change is saved by then, so a
-failing `Record` exits 1 but the change stays.
+A program with its own accounts writes both functions.
+`Authorize(ctx, call, capability)` runs before `Run`, on dry runs
+too. `Record(ctx, call, command)` runs once `Run` has applied the
+change, so a failing `Record` exits 1 but the change stays.
+`call.Actor` arrives exactly as typed, so trim it and lower-case it
+before a lookup.
 
 `call.Flags` holds only the flags the line set, without their
 defaults and without `-yes`, `-json` or `-as`. Flags declared with
