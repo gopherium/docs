@@ -26,13 +26,33 @@ Every component's props interface is exported under its own name,
 `FrameRootProps`, `FrameRailProps` and `FrameCanvasProps`, for when
 you wrap one in a component of your own.
 
+## The canvas on a wide screen
+
+On a wide screen the canvas is a panel 16px from the top, right and
+bottom of the window. On the rail side it has no margin of its own,
+because the rail's 16px padding already parts the two, so the gap
+from the rail's highlighted item to the panel is 16px as well. The
+WordPress Site Editor frames its canvas the same way. When no rail
+is on screen, the panel keeps its 16px on that side too.
+
 ## What happens on a small screen
 
 - Below 1024px the rail goes away. In its place you get a top bar,
   and its menu button opens your same navigation in a drawer that
   slides in.
-- Below 640px the canvas also stretches to the screen edges and
-  uses tighter padding.
+- Below 782px the canvas stretches to the screen edges, with no
+  margin, no rounded corners and no shadow, the way a WordPress
+  admin page meets the screen at that width.
+- Below 640px the canvas also uses tighter padding, 16px instead of
+  24px on each side.
+
+The top bar is 46px tall, like the WordPress admin bar on a phone.
+Its menu button is drawn like the admin bar menu toggle: three bars,
+28px wide and 4px thick, in a 52px wide button at the start of the
+bar. The bars take the text colour of the chrome theme at 60%, so
+they follow your chrome colour and light up under the pointer. The
+admin bar draws its icons in a fixed bluish white at 60%, which
+looks almost the same on a dark bar.
 
 You write the navigation once. The rail and the drawer render the
 same `Frame.Rail` children.
@@ -48,12 +68,13 @@ Two `Frame.Rail` props exist for that top bar:
   drawer it opens. It defaults to `Open navigation`, so set it when
   your application speaks another language.
 
-The two widths are exported, so your own rules can change at the
-same points:
+The widths are exported, so your own rules can change at the same
+points:
 
 | Export | Value |
 | --- | --- |
 | `RAIL_BREAKPOINT` | `1024` |
+| `EDGE_BREAKPOINT` | `782` |
 | `DENSE_BREAKPOINT` | `640` |
 | `SMALL_VIEWPORT` | `(max-width: 1023px)` |
 
@@ -81,6 +102,20 @@ setting `chromeColor` alone tints the canvas too, because the
 canvas inherits from the frame. Set both when the rail and the
 canvas should differ. Each accepts the same color values as the
 design system theme provider.
+
+The theme provider works out every grey from the background you
+give it. The frame paints its chrome with the weak surface of that
+theme, so a `#1e1e1e` chrome background draws the rail and the top
+bar in `#171717`. The WordPress admin bar is `#1d2327`, a colour of
+its own. godmin paints the colour your theme gives and never
+replaces it.
+
+The canvas paints the strong surface of its theme, which is white,
+like a WordPress page. For the exact WordPress greys, give the canvas
+the design system default background, `{ background: '#fcfcfc' }`.
+A white background moves every grey a step lighter: the row lines
+turn `#f3f3f3` instead of `#f0f0f0`, and muted text `#717171`
+instead of `#707070`.
 
 Dialogs, drawers, menus, popovers and selects you open inside the
 frame do not take these colors. They use the `AdminRoot` color

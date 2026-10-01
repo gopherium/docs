@@ -229,10 +229,10 @@ becomes `birthDate2`.
 
 ## Stylesheet helpers
 
-`base.css` ships a few classes for layout jobs every admin screen
-runs into:
+`base.css` ships a few classes and four variables for layout jobs
+every admin screen runs into:
 
-| Class | For |
+| Name | For |
 | --- | --- |
 | `godmin-form` | A single column form, up to 560px wide |
 | `godmin-form--inline` | A form that is one row, filling its column |
@@ -242,6 +242,15 @@ runs into:
 | `godmin-table` | A full width table with collapsed borders |
 | `godmin-table__actions` | The narrow trailing cell holding row actions |
 | `godmin-table-scroll` | The box a wide table scrolls inside |
+| `--godmin-canvas-gutter` | The canvas padding left and right: 24px, 16px below 640px, none on a full bleed canvas |
+| `--godmin-canvas-gutter-block` | The canvas padding above and below: 16px, none on a full bleed canvas |
+| `--godmin-rail-width` | The width of the rail, 300px, set on `:root` |
+| `--godmin-canvas-margin` | The space around the canvas, 16px, set on `:root`. Beside the rail the canvas leaves it out on that side, and below 782px it has none |
+
+The canvas sets its two gutters on itself, so read them inside the
+canvas. The rail width and the canvas margin are set on `:root`, so
+they reach the toast region too, which sits outside the frame and
+uses them to stay centred on the canvas.
 
 A form row puts short fields and a button on one line:
 
