@@ -79,10 +79,11 @@ A command whose help page lists no `-yes` has no dry run.
 
 A command that needs a permission wants `-as <email>`, the account
 you act as. The program checks that account before it runs, dry runs
-included, and records who applied the change. A missing `-as` exits
-2, and an account without the permission exits 1. If recording
-fails, the run exits 1 even though the change was made. Check before
-you run it again.
+included, and records who applied the change. When the listing shows
+`account:records`, that command lists who applied which change,
+newest first. A missing `-as` exits 2, and an account without the
+permission exits 1. If recording fails, the run exits 1 even though
+the change was made. Check before you run it again.
 
 An old spelling with a space may still run, after a warning such as
 `myapp: "report create" is deprecated, use "report:create"`.

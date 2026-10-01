@@ -68,7 +68,7 @@ commands, from `serve` to your own:
 | Brick | What it is |
 | --- | --- |
 | [`gonsole`](https://pkg.go.dev/github.com/gopherium/framework/gonsole) | Commands with help, dry runs and exit codes, settings, and a server that shuts down gracefully |
-| [`gonsole/auth`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth) | Ready account commands, from the first admin to disabling an account |
+| [`gonsole/auth`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth) | Ready account commands, from the first admin to disabling an account, and a record of who changed what |
 
 **[Admin UI](/admin-ui/overview/)** is the React side of an admin
 application:

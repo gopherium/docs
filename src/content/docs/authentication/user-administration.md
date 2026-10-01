@@ -205,9 +205,10 @@ myapp account:grant-role -role admin -yes
 
 Without `-yes` it only reports how many it would change. If your
 account commands set a `Capability`, it also wants `-as <email>`, and
-your `Authorize` checks that account first, even on a dry run. An
-account without a role can fail that check. Then create an admin
-with `account:create-admin` and act as it.
+[`Authorize`](/command-line/account-commands/#an-acting-account)
+checks that account first, even on a dry run. It refuses an account
+without a role. Then create an admin with `account:create-admin` and
+act as it.
 
 A program without gonsole calls `RunGrantRole` from its own command
 instead:

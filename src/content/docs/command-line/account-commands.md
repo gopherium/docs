@@ -1,18 +1,18 @@
 ---
 title: Account commands
-description: Six ready-made commands that create, list, change and disable the accounts of your program.
+description: Seven ready-made commands that create, list, change and disable the accounts of your program, and show who changed what.
 ---
 
 [`gonsole/auth`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth)
-gives your program six account commands over the accounts that the
+gives your program seven account commands over the accounts that the
 [`authkit/postgres` store](/authentication/persistence/) keeps. With
 them you create the first admin of a fresh database, and change a
 role or disable an account from a shell. Add both modules, since
 `gonsole/auth` alone would bring in an older `gonsole`:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.2.0
-go get github.com/gopherium/framework/gonsole/auth@v0.1.0
+go get github.com/gopherium/framework/gonsole@v0.3.0
+go get github.com/gopherium/framework/gonsole/auth@v0.2.1
 ```
 
 The package is named `auth`, like the authkit value in the
@@ -23,36 +23,67 @@ the two apart:
 import accounts "github.com/gopherium/framework/gonsole/auth"
 
 func roles(context.Context, gonsole.Call) (accounts.Roles, error) {
-	return accounts.Roles{Known: []string{"admin", "editor"}, Privileged: []string{"admin"}}, nil
+	return accounts.Roles{
+		Known:      []string{"admin", "editor"},
+		Privileged: []string{"admin"},
+		Capabilities: map[string][]string{
+			"admin":  {"manage_users", "manage_reports"},
+			"editor": {"manage_reports"},
+		},
+	}, nil
 }
 
 func program(getenv func(string) string) gonsole.Program {
+	cfg := accounts.Config{
+		Roles:         roles,
+		Capability:    "manage_users",
+		RecordTimeout: 5 * time.Second,
+		RecordsLimit:  50,
+	}
 	return gonsole.Program{
-		Name:       "myapp",
-		Version:    "1.4.0",
-		Env:        gonsole.Env{Prefix: "MYAPP_", Getenv: getenv},
-		Database:   "DATABASE_URL",
-		Serve:      serve,
-		Migrations: []gonsole.Step{accounts.Migration(), {Name: "reports", Run: migrateReports}},
+		Name:     "myapp",
+		Version:  "1.4.0",
+		Env:      gonsole.Env{Prefix: "MYAPP_", Getenv: getenv},
+		Database: "DATABASE_URL",
+		Serve:    serve,
+		Migrations: []gonsole.Step{
+			accounts.Migration(),
+			accounts.RecordMigration(),
+			{Name: "reports", Run: migrateReports},
+		},
 		Commands: append(
-			[]gonsole.Command{createReport(), listReports},
-			accounts.Commands(accounts.Config{Roles: roles})...,
+			[]gonsole.Command{createReport(), listReports, accounts.Records(cfg)},
+			accounts.Commands(cfg)...,
 		),
+		Authorize: accounts.Authorize(cfg),
+		Record:    accounts.Record(cfg),
 	}
 }
 ```
 
 `Migration` creates the `auth` schema, the tables the accounts live
-in. It goes before your own
+in. `RecordMigration` creates the `gonsole` schema, which holds the
+records of who changed what and its own list of applied migrations.
+Both go before your own
 [schema steps](/command-line/writing-commands/#schema-steps).
 
-`Roles` is required. Without it, every command but `account:list`
-panics. It is a function that returns two lists. `Known` holds every
-role an account may hold. `Privileged` holds the roles that at least
-one enabled account must always keep. The commands call it on each
-run, so it can include the roles your plugins add.
+`RecordMigration` runs on goose, a migration tool, and takes goose's
+lock first. So two `migrate` runs never apply it at once. Leave
+`Program.Lock` unset, since one that takes the same lock would block
+this step.
 
-## The six commands
+`Roles` is required. Without it, every command but `account:list`
+and `account:records` panics. It is a function that returns two lists
+and a map. `Known` holds every role an account may hold. `Privileged`
+holds the roles that at least one enabled account must always keep.
+`Capabilities` maps each role to the permissions it carries. A role
+left out carries none. The commands call it on each run, so it can
+include the roles your plugins add.
+
+`Commands` returns six of the commands below. `Records` returns the
+seventh, `account:records`.
+
+## The seven commands
 
 | Command | What it does | Writes |
 | --- | --- | --- |
@@ -62,6 +93,7 @@ run, so it can include the roles your plugins add.
 | `account:role <email> <role>` | sets one account's role | dry run until `-yes` |
 | `account:disable <email>` | disables one account and deletes its sessions | dry run until `-yes` |
 | `account:enable <email>` | enables one disabled account | dry run until `-yes` |
+| `account:records` | lists who changed what, newest first, offers `-json` | never |
 
 A [dry run](/command-line/writing-commands/#writes-and-dry-runs)
 misses one error. A change that would leave no enabled account under
@@ -71,9 +103,9 @@ a privileged role passes the dry run. With `-yes` it fails with
 `account:create-admin` is the command for an empty database. It
 runs your `Migrations` itself and needs neither `-yes` nor `-as`.
 It prints a `Password:` prompt, reads the password as one line on
-stdin, then prints `created user <email>`. The password needs at least 12
-characters. A terminal shows the password as you type it, so pipe
-it in:
+stdin, then prints `created user <email>`. The password needs at
+least 12 characters. A terminal shows the password as you type it,
+so pipe it in:
 
 ```sh
 printf '%s\n' "$PASSWORD" | myapp account:create-admin \
@@ -101,12 +133,38 @@ Set `Capability` in `accounts.Config` to a permission, such as
 `manage_users`. The four commands that change existing accounts then
 want `-as <email>`, and your program needs
 [`Authorize` and `Record`](/command-line/writing-commands/#an-acting-account).
-Leave either one out and every run fails, even `version`. Two
-details matter in `Record`:
+Leave either one out and every run fails, even `version`. The module
+ships both.
 
-- `Call.Args` is nil for `account:grant-role`, which takes no
-  arguments. A driver such as pgx stores a nil list as NULL. Store
-  `append([]string{}, call.Args...)` instead.
-- The commands trim and lower-case the address before they act, but
-  `Call.Args` keeps it as typed. `Record` sees `Editor@Example.com`
-  where the command changed `editor@example.com`.
+`accounts.Authorize` checks the acting account before the command
+runs, dry runs included. A blank `-as` exits 2. It refuses these
+with exit 1:
+
+- an address no account holds
+- an account that is disabled or was never activated
+- an account without a role, or whose role lacks the permission
+- a database without the records table, with an error that says to
+  run `migrate` first
+
+It checks your own commands too. So list their permissions in
+`Capabilities` as well, such as `manage_reports`.
+
+`accounts.Record` stores one record for each applied change: the
+acting address, its account id, the command, and the arguments and
+flags as typed. `account:records` lists the latest records. A value
+that is empty or holds a space or a quote prints in double quotes.
+
+Two settings tune them. When one is empty, its fallback in `Config`
+applies:
+
+| Setting | Fallback | Sets |
+| --- | --- | --- |
+| `MYAPP_COMMAND_RECORD_TIMEOUT` | `RecordTimeout` | how long storing one record may take |
+| `MYAPP_COMMAND_RECORDS_LIMIT` | `RecordsLimit` | how many records `account:records` lists |
+
+Give both fallbacks a value above zero. A run that falls back to
+zero fails. `Authorize` reads the record timeout too, so a bad one
+stops the run before anything changes. `-limit` on `account:records`
+sets the limit for one run. Call `cfg.Validate(call.Env)` from your
+[`Program.Validate`](/command-line/overview/#settings), so
+`myapp check` reads both settings.
