@@ -109,9 +109,28 @@ if err := appMigrate(ctx, databaseURL); err != nil {
 Two sets of migrations sharing one tracking table will each misread
 the other's entries as their own, and corrupt both histories.
 
+Your own goose runner should also turn on goose's session locker.
+goose is the migration library `authkit/postgres` uses. The locker
+takes a Postgres lock before a runner applies anything and frees it
+after. So two runs that overlap, such as two servers starting at
+once, never apply the same migration together. The second waits,
+then finds nothing left to apply:
+
+```go
+locker, err := lock.NewPostgresSessionLocker()
+if err != nil {
+	return err
+}
+provider, err := goose.NewProvider(goose.DialectPostgres, db, migrations,
+	goose.WithSessionLocker(locker))
+```
+
 With gonsole, list both as steps in `Program.Migrations`, the
 library's first. `serve` never runs them, so run `myapp migrate`
-before each release starts. It applies them in that order.
+before each release starts. It applies them in that order. Both
+library steps already turn the locker on: `authkitpg.Migrate` from
+`authkit/postgres` 0.11.2 on, and the records step of
+`gonsole/auth`, `accounts.RecordMigration()`.
 
 Any other module that owns database tables follows the same rule with
 its own table. Plugins are the common case, and the
