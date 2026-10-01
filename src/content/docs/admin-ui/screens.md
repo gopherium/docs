@@ -19,9 +19,21 @@ a component of your own.
 </Page>
 ```
 
-`title` is required and becomes the page's single `h1` heading.
-`subtitle` renders under it, `actions` renders top right, and
-`className` and `children` do what they always do.
+`title` is required and becomes the page's single `h1` heading, at
+15px like the title of a WordPress page. `actions` renders top right,
+and `className` and `children` do what they always do. When the
+actions no longer fit beside the title, on a phone for example, they
+move to a line of their own under it.
+
+`subtitle` renders as one 13px grey line under the title and the
+actions, the way WordPress sets the sentence under a page title. The
+title row is 40px tall even with no actions, so the title and the
+subtitle sit in the same place on every page. Give the page compact
+buttons, `size="compact"`, to match the 32px buttons of a WordPress
+page header.
+
+`tabs` renders a row of tabs under the title block. See
+[PageTabs](#pagetabs) below.
 
 `aside` adds a second column beside the content, for the details
 that sit next to a record's main work:
@@ -40,6 +52,18 @@ for both, the aside moves below the content and both fill the page.
 No breakpoint decides this, only the page's own width. An aside that
 renders nothing takes no room.
 
+`list` marks a page whose content is a list, such as a DataViews
+table. The content then reaches out to the canvas edges, so the
+list's row lines run from edge to edge and its own padding lines up
+with the title. A page with an `aside` keeps its list inside the main
+column. [Lists with DataViews](/admin-ui/lists/) shows it in full.
+
+```tsx
+<Page title="Users" list>
+	<UserList />
+</Page>
+```
+
 A screen that fills the canvas edge to edge builds its own layout
 and uses `PageTitle` directly, so the page still gets exactly one
 `h1`:
@@ -48,7 +72,61 @@ and uses `PageTitle` directly, so the page still gets exactly one
 <PageTitle>Conversations</PageTitle>
 ```
 
-Pass `variant` to change the text size.
+It draws the 15px large heading by default. Pass `variant` to change
+the text size.
+
+## PageTabs
+
+`PageTabs` and `PageTab` split a page into sections that each have
+their own address, like the Subscribers and Settings tabs of a
+WordPress page:
+
+```tsx
+<Page
+	title="Users"
+	list
+	tabs={
+		<PageTabs label="User sections">
+			<PageTab render={<Link to="/users" activeOptions={{ exact: true }} />} current>
+				Users
+			</PageTab>
+			<PageTab render={<Link to="/users/tokens" activeOptions={{ exact: true }} />}>
+				API tokens
+			</PageTab>
+		</PageTabs>
+	}
+>
+	<UserList />
+</Page>
+```
+
+Each tab is a link. Pass your router's link element as `render`, or
+a plain address as `href`. godmin does not know your router, so it
+renders whatever link you give it and adds its own class. `current`
+marks the tab of the page on screen, and a screen reader hears it as
+the current page.
+
+`current` alone decides which tab is underlined. A router link can
+still mark itself as the current page for screen readers. TanStack
+Router counts a link to `/users` as active on `/users/tokens` too,
+so without `activeOptions={{ exact: true }}` a screen reader would
+hear both tabs as the current page. Pass it on every tab link, as the
+example does.
+
+`label` names the tab row for assistive technology. The row is a
+navigation region, and the rail is one too, so the name tells them
+apart.
+
+The tabs look like the WordPress tabs: 13px labels 16px apart, the
+current one underlined by a 2px grey line as wide as its label, and a
+1px light line under the row that runs to the canvas edges.
+
+They are links and not the design system `Tabs` component on
+purpose. `Tabs` switches panels inside one page and moves between
+tabs with the arrow keys. A tab here opens another page, so it is a
+link, reached with Tab and marked with `aria-current`, which is how
+assistive technology expects page navigation to work. godmin copies
+the look of the WordPress tabs and keeps the behavior of links.
 
 ## SectionTitle
 
@@ -242,6 +320,7 @@ every admin screen runs into:
 | `godmin-table` | A full width table with collapsed borders |
 | `godmin-table__actions` | The narrow trailing cell holding row actions |
 | `godmin-table-scroll` | The box a wide table scrolls inside |
+| `godmin-list` | The box around a DataViews list inside a page section, lining its search and cells up with the text around it |
 | `--godmin-canvas-gutter` | The canvas padding left and right: 24px, 16px below 640px, none on a full bleed canvas |
 | `--godmin-canvas-gutter-block` | The canvas padding above and below: 16px, none on a full bleed canvas |
 | `--godmin-rail-width` | The width of the rail, 300px, set on `:root` |
