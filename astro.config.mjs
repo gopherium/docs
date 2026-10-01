@@ -65,6 +65,7 @@ export default defineConfig({
 						{ slug: 'admin-ui/overview' },
 						{ slug: 'admin-ui/framing-an-application' },
 						{ slug: 'admin-ui/screens' },
+						{ slug: 'admin-ui/lists' },
 						{ slug: 'admin-ui/loading-and-feedback' },
 						{ slug: 'admin-ui/testing' },
 						{ slug: 'admin-ui/build-and-versioning' },

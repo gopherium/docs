@@ -317,8 +317,9 @@ every admin screen runs into:
 | `godmin-form__row` | Short fields side by side inside a form |
 | `godmin-form__grow` | The field of a row that takes most of the free room |
 | `godmin-empty` | A centered empty state with breathing room |
-| `godmin-table` | A full width table with collapsed borders |
+| `godmin-table` | A full width table with collapsed borders, 13px text on 20px lines |
 | `godmin-table__actions` | The narrow trailing cell holding row actions |
+| `godmin-table__title` | The cell naming the record, bold, regular on a list page, its link with no underline |
 | `godmin-table-scroll` | The box a wide table scrolls inside |
 | `godmin-list` | The box around a DataViews list inside a page section, lining its search and cells up with the text around it |
 | `--godmin-canvas-gutter` | The canvas padding left and right: 24px, 16px below 640px, none on a full bleed canvas |
