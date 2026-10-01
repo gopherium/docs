@@ -100,7 +100,7 @@ same function first, so the server refuses a bad setting too.
 gonsole depends only on the standard library. Add it with:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.2.0
+go get github.com/gopherium/framework/gonsole@v0.3.0
 ```
 
 Read on with [Writing commands](/command-line/writing-commands/),

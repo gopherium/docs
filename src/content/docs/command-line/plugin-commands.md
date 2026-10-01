@@ -53,7 +53,7 @@ true when gonsole only needs the listing or a help page. The example
 then skips the database, so `myapp list` works without one:
 
 ```go
-func loadPlugins(ctx context.Context, call gonsole.Call) (gonsole.Loaded, error) {
+func loadPlugins(_ context.Context, call gonsole.Call) (gonsole.Loaded, error) {
 	stopGrace, err := call.Env.Duration("SHUTDOWN_STOP_GRACE", 5*time.Second)
 	if err != nil {
 		return gonsole.Loaded{}, err
@@ -66,30 +66,26 @@ func loadPlugins(ctx context.Context, call gonsole.Call) (gonsole.Loaded, error)
 	}
 	registered, failed := registerPlugins(sdk.Deps{DatabaseURL: url, Getenv: call.Env.Getenv})
 	host := pluginkit.NewHost(registered...)
-	groups, panicked := gonsole.Walk(registered)
-	return gonsole.Loaded{
-		Groups:  groups,
-		Migrate: host.Migrate,
-		Seed:    host.Seed,
-		Failed:  errors.Join(failed, panicked),
-		Release: func(ctx context.Context) error {
-			ctx, cancel := context.WithTimeout(ctx, stopGrace)
-			defer cancel()
-			return host.Stop(ctx)
-		},
-	}, nil
+	return gonsole.Hosted(registered, host, failed, stopGrace, nil), nil
 }
 ```
 
 Set it as `Plugins: loadPlugins`. `registerPlugins` comes from the
-[wiring generator](/plugins/wiring-and-manifests/). `Migrate` and
-`Seed` let the `migrate` and `seed` commands run the plugins' schema
-and demo data after your own.
+[wiring generator](/plugins/wiring-and-manifests/).
+`gonsole.Hosted` builds the `gonsole.Loaded` from the plugins and a
+host. The host is any `gonsole.PluginHost`, a type with `Migrate`,
+`Seed` and `Stop` methods, and `*pluginkit.Host` is one. Its
+`Migrate` and `Seed` let the `migrate` and `seed` commands run the
+plugins' schema and demo data after your own.
 
 gonsole calls `Release` at the end of every run that loaded the
 plugins, `list` and help pages included, so they can stop and clean
-up. gonsole gives it no time limit, so the example sets one from
-`MYAPP_SHUTDOWN_STOP_GRACE`. If `Release` fails, the run prints
+up. The run puts no time limit on it, so the `Release` of `Hosted`
+has its own, the stop grace. The example reads it from
+`MYAPP_SHUTDOWN_STOP_GRACE`. Once the host stops, or fails to,
+`Release` calls the last argument. Pass a function that closes what
+registering opened, such as a database pool, or `nil` when it opened
+nothing, as here. If `Release` fails, the run prints
 `myapp: release the plugins:` and the error, and exits 1.
 
 gonsole does not load the plugins for `serve`. Your `serve` function
