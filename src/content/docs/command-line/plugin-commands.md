@@ -48,9 +48,11 @@ command.
 ## Loading the plugins
 
 `Program.Plugins` is a function you write. It registers the compiled
-plugins with pluginkit and starts none of them. `call.Describe` is
-true when gonsole only needs the listing or a help page. The example
-then skips the database, so `myapp list` works without one:
+plugins with pluginkit and starts none of them. `call.DatabaseURL()`
+answers the database address. When gonsole only needs the listing or
+a help page, `call.Describe` is true and `DatabaseURL` never fails.
+It answers an empty address when the setting is unset, so
+`myapp list` works without a database:
 
 ```go
 func loadPlugins(_ context.Context, call gonsole.Call) (gonsole.Loaded, error) {
@@ -58,11 +60,9 @@ func loadPlugins(_ context.Context, call gonsole.Call) (gonsole.Loaded, error) {
 	if err != nil {
 		return gonsole.Loaded{}, err
 	}
-	url := call.Env.Value("DATABASE_URL")
-	if !call.Describe {
-		if url, err = call.DatabaseURL(); err != nil {
-			return gonsole.Loaded{}, err
-		}
+	url, err := call.DatabaseURL()
+	if err != nil {
+		return gonsole.Loaded{}, err
 	}
 	registered, failed := registerPlugins(sdk.Deps{DatabaseURL: url, Getenv: call.Env.Getenv})
 	host := pluginkit.NewHost(registered...)
@@ -82,16 +82,22 @@ gonsole calls `Release` at the end of every run that loaded the
 plugins, `list` and help pages included, so they can stop and clean
 up. The run puts no time limit on it, so the `Release` of `Hosted`
 has its own, the stop grace. The example reads it from
-`MYAPP_SHUTDOWN_STOP_GRACE`. Once the host stops, or fails to,
-`Release` calls the last argument. Pass a function that closes what
-registering opened, such as a database pool, or `nil` when it opened
-nothing, as here. If `Release` fails, the run prints
-`myapp: release the plugins:` and the error, and exits 1.
+`MYAPP_SHUTDOWN_STOP_GRACE`. `Release` stops the host with
+`gonsole.StopHost`, which still stops it when the run's context has
+ended. Once the host stops, or fails to, `Release` calls the last
+argument. Pass a function that closes what registering opened, such
+as a database pool, or `nil` when it opened nothing, as here. If
+`Release` fails, the run prints `myapp: release the plugins:` and
+the error, and exits 1.
 
 gonsole does not load the plugins for `serve`. Your `serve` function
 registers them itself, starts the host and mounts its routes, as the
 [host lifecycle](/plugins/host-lifecycle/) shows. It then passes
 `host.Stop` to [`gonsole.Serve`](/command-line/serving/) as `stop`.
+If `serve` fails after it built the host and before it reaches
+`Serve`, call `gonsole.StopHost(ctx, host, stopGrace)`, so the
+plugins still stop within the stop grace. `Serve` refuses a zero
+grace without calling `stop`, so fill in all three graces.
 
 ## When a plugin fails
 
@@ -117,6 +123,8 @@ such as `report`, loses all its commands. `list` and `check` report
 it, and each of its commands exits 2, like an unknown command. The
 plugin still registers, so `migrate` and `seed -yes` still apply its
 schema and demo data. To catch that earlier, list those names in
-`wire.Config.Reserved`, as the
+`wire.Config.Reserved`. `gonsole.BaseCommands()` returns the base
+commands, and the
 [wiring page](/plugins/wiring-and-manifests/#ids-the-generator-refuses)
-shows. The wiring generator then refuses such an id.
+shows how to add your own. The wiring generator then refuses such an
+id.

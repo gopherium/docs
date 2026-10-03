@@ -75,6 +75,7 @@ when each one is shown.
 
 A base command that is not shown fails like an unknown command.
 Your own commands can never use these seven names.
+`gonsole.BaseCommands()` returns them.
 
 Running `myapp` with no command prints the listing. So a container
 image that should start the server sets `CMD ["serve"]`.
@@ -100,7 +101,7 @@ same function first, so the server refuses a bad setting too.
 gonsole depends only on the standard library. Add it with:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.3.0
+go get github.com/gopherium/framework/gonsole@v0.4.0
 ```
 
 Read on with [Writing commands](/command-line/writing-commands/),
