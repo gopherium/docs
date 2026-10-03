@@ -208,7 +208,8 @@ account commands set a `Capability`, it also wants `-as <email>`, and
 [`Authorize`](/command-line/account-commands/#an-acting-account)
 checks that account first, even on a dry run. It refuses an account
 without a role. Then create an admin with `account:create-admin` and
-act as it.
+act as it. The command also refuses to give a role that carries a
+permission the acting account's role lacks.
 
 A program without gonsole calls `RunGrantRole` from its own command
 instead:

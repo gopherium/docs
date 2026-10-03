@@ -11,8 +11,8 @@ role or disable an account from a shell. Add both modules, since
 `gonsole/auth` alone would bring in an older `gonsole`:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.3.0
-go get github.com/gopherium/framework/gonsole/auth@v0.2.1
+go get github.com/gopherium/framework/gonsole@v0.4.0
+go get github.com/gopherium/framework/gonsole/auth@v0.3.0
 ```
 
 The package is named `auth`, like the authkit value in the
@@ -148,6 +148,36 @@ with exit 1:
 
 It checks your own commands too. So list their permissions in
 `Capabilities` as well, such as `manage_reports`.
+
+The four commands also refuse three changes. Each refusal exits 1,
+on dry runs too, and is not recorded:
+
+- giving a role, or changing an account under a role, when that role
+  carries a permission the acting account's role lacks
+- the acting account disabling itself
+- the acting account changing its own role
+
+Say you add a `support` role that carries only `manage_users`. An
+account under `support` cannot give `editor` or `admin`, or change
+an account under them, since both carry `manage_reports`:
+
+```text
+$ myapp account:role maria.perez@example.com editor -as support@example.com
+myapp: the role editor carries manage_reports, which the account support@example.com lacks
+```
+
+Any acting account may give a role left out of `Capabilities`. Give
+the role that manages accounts every permission the other roles
+carry, as `admin` does here. Otherwise no account command can give a
+role that carries a permission the managing role lacks, or change an
+account under it.
+
+The four commands look the acting account up themselves, so `-as`
+must name an account even under an `Authorize` of your own.
+`account:create-admin` checks none of this, so a fresh database can
+always get its first admin. The
+[admin HTTP handlers](/authentication/user-administration/) also
+refuse disabling your own account and changing your own role.
 
 `accounts.Record` stores one record for each applied change: the
 acting address, its account id, the command, and the arguments and
