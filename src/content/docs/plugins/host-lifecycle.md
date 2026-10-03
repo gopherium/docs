@@ -132,3 +132,6 @@ it may skip its cleanup. So the example builds a new context.
 
 [`gonsole.Serve`](/command-line/serving/) builds that context for
 you. Pass it `host.Stop` and it calls it once the server is down.
+For a failure before the server starts,
+`gonsole.StopHost(ctx, host, stopGrace)` builds the same context and
+stops the host.

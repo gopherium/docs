@@ -103,13 +103,11 @@ manifest when a plugin uses one:
 
 `Reserved` lists more ids that no plugin may take, such as the
 names of your own commands. On [`gonsole`](/command-line/plugin-commands/),
-pass its seven base commands and your own namespaces:
+pass `gonsole.BaseCommands()` and your own namespaces, and add
+`github.com/gopherium/framework/gonsole` to the generator's imports:
 
 ```go
-Reserved: []string{
-	"help", "list", "version", "check", "serve", "migrate", "seed",
-	"account", "report",
-},
+Reserved: append(gonsole.BaseCommands(), "account", "report"),
 ```
 
 An id can also clash with a name your own code declares in the
@@ -151,4 +149,8 @@ if err != nil {
 ```
 
 When a plugin fails to register, the example still stops the ones
-that did, so nothing they built is left behind.
+that did, so nothing they built is left behind. On
+[`gonsole`](/command-line/plugin-commands/), call
+`gonsole.StopHost(ctx, host, stopGrace)` instead of `host.Stop(ctx)`.
+It gives the stop its own time limit. The plugins get a context that
+has not ended, even when `ctx` has.
