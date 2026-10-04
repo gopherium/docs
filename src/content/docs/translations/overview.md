@@ -25,16 +25,17 @@ translation tools already speak, and on
 Steps 2, 4 and 5 are gottext. Step 3 happens in a translation tool,
 and gottext can carry the answers home for you.
 
-## Three entry points
+## Four entry points
 
 | Import | Runs | Holds |
 | --- | --- | --- |
-| `@gopherium/gottext` | In the browser | Loading a language, showing dates |
+| `@gopherium/gottext` | In the browser | Loading a language, writing dates and numbers |
+| `@gopherium/gottext/react` | In the browser | A gate that waits for the format of dates and numbers |
 | `@gopherium/gottext/build` | In build scripts | Templates, compiling, health checks |
 | `@gopherium/gottext/sync` | In build scripts | Carrying translations home |
 
-The browser entry is the only one that ships to a reader. The other
-two run on your machine and in continuous integration.
+The browser entries are the only ones that ship to a reader. The
+other two run on your machine and in continuous integration.
 
 ## Text domains
 
@@ -65,6 +66,8 @@ Check it once and the whole class of bug is closed.
 ## Next
 
 - [Loading a language](/translations/runtime/) in the browser.
+- [Dates and numbers](/translations/dates-and-numbers/), one format for
+  every reader.
 - [Templates and catalogues](/translations/building/), the build steps.
 - [Catalogue health](/translations/health/), the checks that keep them honest.
 - [Carrying translations home](/translations/sync/) from a platform.

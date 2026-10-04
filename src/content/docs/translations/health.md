@@ -50,6 +50,10 @@ that it drains through review rather than blocking a merge.
 Run the first three per language in a test and a broken catalogue
 cannot merge.
 
+One more check reads the template alone. `unformatted` names every
+message that writes a bare number, covered in
+[Dates and numbers](/translations/dates-and-numbers/#counts-in-messages).
+
 ## One copy of the runtime
 
 `@wordpress/i18n` keeps loaded catalogues in module state. Two copies

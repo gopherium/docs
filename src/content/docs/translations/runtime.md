@@ -1,9 +1,9 @@
 ---
 title: Loading a language
-description: Resolving the reader's language, loading catalogues, and showing dates in it.
+description: Resolving the reader's language and loading its catalogues.
 ---
 
-This is the only part of gottext that ships to a browser. It answers
+This part of gottext ships to a browser. It answers
 one question at startup: which language is this reader in, and where
 are its catalogues.
 
@@ -42,34 +42,9 @@ three domains cost one wait rather than three. A domain that answers
 
 `startLocale` returns the language it settled on, and remembers it.
 
-## Dates
-
-`formatDate` shows a moment in whatever language `startLocale`
-settled on:
-
-```ts
-import { formatDate } from '@gopherium/gottext'
-
-formatDate(post.publishedAt)
-formatDate(post.publishedAt, { dateStyle: 'long' })
-```
-
-It takes a `Date` or the text a server stored, and returns an empty
-string for an empty input, so a missing date renders as nothing
-rather than as `Invalid Date`.
-
-A bare calendar day, such as a due date stored as `2026-09-01`, shows
-on that day for every reader, wherever they are. A full timestamp,
-such as `2026-09-01T03:00:00Z`, is a moment, so it shows in the
-reader's own time zone. For a reader in Los Angeles that one is still
-August 31.
-
-It renders the date only. The options are the
-[`Intl.DateTimeFormatOptions`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
-that `toLocaleDateString` accepts: `dateStyle` and the individual
-fields work, and `timeStyle` throws. To show a time, pass the fields
-you want, such as `{ hour: 'numeric', minute: 'numeric' }`.
-
 `displayLocale()` answers the settled language if you need it
 elsewhere. `rememberLocale(locale)` sets it, which `startLocale` does
 for you.
+
+Dates and numbers can follow a format of their own, apart from the
+reader's language. See [Dates and numbers](/translations/dates-and-numbers/).

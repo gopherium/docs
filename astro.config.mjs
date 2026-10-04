@@ -76,6 +76,7 @@ export default defineConfig({
 					items: [
 						{ slug: 'translations/overview' },
 						{ slug: 'translations/runtime' },
+						{ slug: 'translations/dates-and-numbers' },
 						{ slug: 'translations/building' },
 						{ slug: 'translations/health' },
 						{ slug: 'translations/sync' },
