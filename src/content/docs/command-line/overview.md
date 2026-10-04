@@ -83,11 +83,39 @@ image that should start the server sets `CMD ["serve"]`.
 ## Settings
 
 `call.Env.Value("ADDR")` reads `MYAPP_ADDR`, with spaces trimmed
-from both ends. `Duration` and `Count` read a setting as a length of
-time or a number. Each takes a fallback, the value to use when the
-setting is empty. Each refuses a bad value, zero and below included.
-`gonsole.AllowZero()` after the fallback accepts zero, and
-`gonsole.AtMost(64)` refuses a count above 64.
+from both ends. `Duration`, `Count` and `Counts` read a setting as a
+length of time, a number, or a list of numbers. Each takes a
+fallback, the value to use when the setting is empty. Each refuses a
+bad value, zero and below included.
+
+`Counts` reads numbers split by commas, such as `10,20,50`. Each
+number must be bigger than the one before it.
+
+Bounds after the fallback change what a setting accepts:
+
+```go
+sizes, err := call.Env.Counts("PAGE_SIZES", []int{10, 20, 50},
+	gonsole.AtMost(100), gonsole.Entries(2, 6))
+toast, err := call.Env.Duration("TOAST_DURATION", 6*time.Second,
+	gonsole.WholeMilliseconds())
+```
+
+| Bound | Effect |
+| --- | --- |
+| `gonsole.AllowZero()` | accepts zero too |
+| `gonsole.AtMost(100)` | refuses a number above 100 |
+| `gonsole.WholeMilliseconds()` | refuses a duration with a part millisecond, such as `1500us` |
+| `gonsole.Entries(2, 6)` | refuses a list of fewer than 2 or more than 6 numbers |
+
+The [`gonsole/locale`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/locale)
+package reads a setting that names a language, such as
+`MYAPP_FORMAT_LOCALE=es-ES`. It answers the tag in its standard
+spelling, so `en-gb` reads as `en-GB`, and refuses a value that
+names no language:
+
+```go
+tag, err := locale.Tag(call.Env, "FORMAT_LOCALE", "es-ES")
+```
 
 Set `Program.Validate` to a function that reads every setting the
 program needs, such as `call.Env.Required("REGION")`. Only the
@@ -98,10 +126,12 @@ same function first, so the server refuses a bad setting too.
 
 ## Where it sits
 
-gonsole depends only on the standard library. Add it with:
+gonsole depends only on the standard library. Its `locale` package
+also uses `golang.org/x/text`, built only into a program that imports
+it. Add gonsole with:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.4.0
+go get github.com/gopherium/framework/gonsole@v0.5.0
 ```
 
 Read on with [Writing commands](/command-line/writing-commands/),
