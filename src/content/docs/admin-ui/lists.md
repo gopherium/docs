@@ -1,6 +1,6 @@
 ---
 title: Lists with DataViews
-description: Hosting a WordPress DataViews list in a godmin page, its Spanish chrome, and the table look for lists that stay custom.
+description: Hosting a WordPress DataViews list in a godmin page, paging it on the server, bulk actions, its Spanish chrome, and the table look for lists that stay custom.
 ---
 
 DataViews is the WordPress list component. It draws the search box,
@@ -101,6 +101,109 @@ and keeps 16px between itself and the list:
 	<DataViews {...props} />
 </Page>
 ```
+
+## Paging on the server
+
+`filterSortAndPaginate` needs every row in the browser. A long list
+asks the server for one page at a time instead. The server needs two
+numbers: the limit, how many rows to send, and the offset, how many
+rows to skip first. `useServerPaging` works both out from the view:
+
+```tsx
+import { Page, paginationOf, useServerPaging } from '@gopherium/godmin'
+
+export function OrdersScreen() {
+	const [view, setView] = useState<View>({ type: 'table', page: 1, perPage: 20, fields: ['total'] })
+	const paging = useServerPaging(view, 100)
+	const { page, asked } = useOrderPage(paging.window)
+	paging.record(page, asked)
+	return (
+		<Page title="Orders" list>
+			<DataViews
+				data={page?.items ?? []}
+				paginationInfo={paginationOf(page)}
+				fields={fields}
+				view={view}
+				onChangeView={setView}
+				defaultLayouts={{ table: {} }}
+			/>
+		</Page>
+	)
+}
+```
+
+`useOrderPage` stands for your own request. On page 3 with 20 rows a
+page, `paging.window` is `{ limit: 20, offset: 40 }`. The second
+argument is the largest page your server sends. A bigger page size
+is held under it. Leave it out when your server has no such limit.
+
+The server answers with the rows, `total`, how many rows match in
+all, and `limit`, the page size it used. Hand that page to
+`paging.record` and to `paginationOf`, or `undefined` while it has
+not arrived. `paginationOf` turns it into the totals DataViews shows.
+
+`useOrderPage` also gives back `asked`, the limit of the request that
+got this page. With urql, that is `result.operation?.variables.limit`.
+Call `paging.record(page, asked)` in the same component, right after
+your request, as the example does.
+
+`paging.record` remembers the page size the server used for that
+request. When the server used another size than you asked for, the
+next pages step by the size it used, and no row goes missing or shows
+twice. An answer to an older request, with another page size, never
+changes the step. A view with no `perPage` asks with a `null` limit.
+The server then picks the size, and the pages step by it once the
+first one arrives.
+
+`pageWindow(view, last, cap)` is the plain function behind the hook,
+for code outside a component. `last` is the size the server last sent
+together with the size it was asked for, or `undefined` before the
+first page.
+
+## Bulk actions
+
+A bulk action runs on every row the reader picked. `runEach` makes one
+call per row, all at once, and counts how they went:
+
+```tsx
+import { runEach, useToaster } from '@gopherium/godmin'
+import type { Action } from '@wordpress/dataviews'
+
+export function useArchiveAction(onFailure: (message: string) => void): Action<Order> {
+	const toaster = useToaster()
+	return {
+		id: 'archive',
+		label: 'Archive',
+		supportsBulk: true,
+		callback: async (orders) => {
+			const { asked, done, failures } = await runEach(orders, (order) => archiveOrder(order.id))
+			if (done > 0) {
+				toaster.show(`Archived ${done} of ${asked}.`)
+			}
+			if (failures.length > 0) {
+				onFailure(`Could not archive ${failures.length} of ${asked}.`)
+			}
+		},
+	}
+}
+```
+
+The action lives in a hook, because `useToaster` only works inside a
+component. The screen passes `onFailure`, which shows the message in
+its notice.
+
+`asked` is how many rows `runEach` got and `done` is how many calls
+worked. `failures` holds each row that failed with its error, in the
+order of the rows. A call fails when its promise rejects, when it
+throws, or when it answers an object whose `error` is set. Many
+GraphQL clients report an error that way, so a call can hand back the
+client's result as it is. `runEach` itself never fails, so one bad row
+never hides the others.
+
+Toast what worked. Show what failed in a notice above the list, as
+in the part above, and as
+[success toasts, failure notices](/admin-ui/loading-and-feedback/#success-toasts-failure-notices)
+explains.
 
 ## The canvas colour
 
