@@ -195,9 +195,10 @@ its notice.
 `asked` is how many rows `runEach` got and `done` is how many calls
 worked. `failures` holds each row that failed with its error, in the
 order of the rows. A call fails when its promise rejects, when it
-throws, or when it answers an object whose `error` is set. Many
-GraphQL clients report an error that way, so a call can hand back the
-client's result as it is. `runEach` itself never fails, so one bad row
+throws, or when it answers an object whose `error` holds an error. An
+`error` of `null` or `undefined` counts as done. Many GraphQL clients
+report an error that way, so a call can hand back the client's result
+as it is. `runEach` itself never fails, so one bad row
 never hides the others.
 
 Toast what worked. Show what failed in a notice above the list, as
