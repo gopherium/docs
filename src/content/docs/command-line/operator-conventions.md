@@ -61,10 +61,14 @@ $ myapp report:create Q3
 myapp: report:create wants -owner <email>
 ```
 
-The last two also print the help page on stderr, left out here. A 2
-with no `myapp:` line is different. It is a crash the program could
-not catch, such as a stack overflow or a panic in background work
-the command started.
+The last two also print the help page on stderr, left out here. The
+last one names a flag the command cannot run without. Pass it with a
+value. An empty value or spaces alone count as missing, and nothing
+runs until you set it.
+
+A 2 with no `myapp:` line is different. It is a crash the program
+could not catch, such as a stack overflow or a panic in background
+work the command started.
 
 Flags and arguments may come in any order. Everything after `--` is
 an argument, even when it starts with a dash, so a title like `-Q3`

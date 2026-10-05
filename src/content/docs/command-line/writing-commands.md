@@ -18,10 +18,11 @@ func createReport() gonsole.Command {
 		Flags: func(fs *flag.FlagSet) {
 			fs.StringVar(&owner, "owner", "", "`email` address of the report's owner")
 		},
+		Needs:  []string{"owner"},
 		Writes: true,
 		Run: func(_ context.Context, call gonsole.Call) error {
 			if !strings.Contains(owner, "@") {
-				return gonsole.Misuse(errors.New("report:create wants -owner <email>"))
+				return gonsole.Misuse(fmt.Errorf("report:create: %q is not an email address", owner))
 			}
 			title := call.Args[0]
 			if !call.Apply {
@@ -50,14 +51,33 @@ place on the line. Each one is required, and extra ones are refused.
 So a line without a title exits 2 with
 `myapp: report:create wants <title>` and the help page.
 
-gonsole cannot tell that `-owner` is required. So `Run` returns
-`gonsole.Misuse`, which marks the error as a mistake on the command
-line. It exits 2 the same way.
-
 `Flags` declares the command's own flags with Go's standard `flag`
 package. gonsole may call it more than once, so it must only declare
 flags. It must not declare `-h`, `-help`, `-yes`, `-json` or `-as`,
 which gonsole owns.
+
+`Needs` names the flags the line must set. A line that leaves
+`-owner` out, or leaves it empty or spaces only, exits 2 with
+`myapp: report:create wants -owner <email>` and the help page.
+gonsole checks this once it has read the line, before any schema
+step, [`Authorize`](#an-acting-account) or `Run`.
+`myapp report:create -h` prints the help page without `-owner`.
+
+The placeholder `email` is the word in backquotes in the flag's
+usage, the last argument of `fs.StringVar` above. Without backquotes
+it names the kind of value, such as `string` or `int`, or just
+`value` for a flag of your own type.
+
+Each name in `Needs` must be a flag that `Flags` declares and that
+takes a value, unlike a `bool` flag. Otherwise the command breaks a
+rule, like a missing summary. Never name a flag declared with
+`fs.Func` in `Needs`. gonsole reads such a flag as empty, so every
+run would exit 2, even one that sets it.
+
+`Needs` only checks that a value is there. To refuse a bad value,
+such as an owner without `@`, `Run` returns `gonsole.Misuse`. It
+marks the error as a mistake on the command line, so the run exits
+2 the same way.
 
 The first Ctrl-C cancels the `ctx` that `Run` gets. A long command
 watches it and stops. Otherwise it runs on until a second Ctrl-C
