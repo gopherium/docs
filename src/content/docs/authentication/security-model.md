@@ -44,8 +44,14 @@ gets no usable tokens.
 **The cookie is locked down.** It is `__Host-` prefixed, `HttpOnly`,
 `Secure` and `SameSite=Lax`. In practice that means: browsers tie it
 to exactly one hostname and refuse it without HTTPS, page scripts
-cannot read it, and a cross-site POST does not carry it. That last one
-is most of your CSRF protection for a JSON API.
+cannot read it, and a cross-site POST does not carry it.
+
+**Writes from other origins are refused.** `Lax` treats every
+subdomain of your domain as the same site, so it does not stop them
+alone. The [cross-origin guard](/authentication/sessions-over-http/#refusing-cross-origin-writes)
+refuses a browser write whose page stands at another origin, before
+any route runs. Scripts and other servers send no browser headers and
+pass.
 
 Note the precise limit of `Lax`. It withholds the cookie from
 cross-site POSTs, but it still sends it when someone follows a link
@@ -107,8 +113,11 @@ through the admin routes.
 - **Authorization.** These bricks answer who someone is and which role
   they hold. Deciding what each role is allowed to do is your
   application's logic. Keep that logic in one place.
-- **Anything beyond `SameSite=Lax`** that your threat model calls for.
-  The bricks define no state-changing GET requests of their own.
+- **Mount the cross-origin guard** at the root of your router. authkit
+  offers it but cannot mount it for you.
+- **Send `Strict-Transport-Security`.** The guard judges an older
+  browser by host alone, never by scheme. HSTS keeps that browser on
+  HTTPS.
 
 Found a vulnerability? Report it privately through the
 [gouncer security policy](https://github.com/gopherium/gouncer/blob/main/SECURITY.md).

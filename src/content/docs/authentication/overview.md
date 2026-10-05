@@ -31,7 +31,8 @@ rule. It owns none of your HTTP layer.
 **[`authkit`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit)**
 is that HTTP layer, shared instead of re-typed: login, logout, and
 session handlers, the `RequireSession` middleware, the `__Host-`
-cookie, the [user administration surface](/authentication/user-administration/),
+cookie, a [cross-origin guard](/authentication/sessions-over-http/#refusing-cross-origin-writes),
+the [user administration surface](/authentication/user-administration/),
 a session garbage collector, and a bootstrap helper. It exports
 handlers and middleware, never a router. The work behind every
 handler is also exposed as [plain methods](/authentication/sessions-over-http/#the-seams-under-the-handlers)

@@ -28,6 +28,11 @@ There is one exception: browsers accept secure cookies over plain HTTP
 on `localhost`. Development and end-to-end runs therefore need no TLS
 and no special insecure-cookie setting.
 
+Have the proxy keep the visitor's `Host` header and send
+`Strict-Transport-Security`. The
+[cross-origin guard](/authentication/sessions-over-http/#refusing-cross-origin-writes)
+relies on both when an older browser writes.
+
 ## 2. Tell the application which proxy to trust
 
 The login rate limiter counts failed attempts per client IP. Behind a

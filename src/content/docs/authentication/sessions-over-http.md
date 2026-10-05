@@ -1,6 +1,6 @@
 ---
 title: Sessions over HTTP
-description: The authkit handlers, the RequireSession middleware, and the identity that flows through your requests.
+description: The authkit handlers, the RequireSession middleware, the cross-origin guard, and the identity that flows through your requests.
 ---
 
 [`authkit`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit)
@@ -161,6 +161,7 @@ The codes authkit can answer with:
 | `user_id_malformed`, `user_not_found` | The id is not a UUID, or matches no account |
 | `self_disable_refused`, `self_role_refused` | An account changing itself |
 | `last_privileged_refused` | The last administrator cannot be removed |
+| `request_cross_origin` | A browser write came from another origin |
 | `internal` | Something failed on the server |
 
 The [rate limiter](/authentication/rate-limiting/) adds
@@ -175,3 +176,37 @@ guarantees: no `Domain` attribute, secure origins only. The practical
 consequences, including why development on localhost just works and
 why production requires TLS in front, live in the
 [operations contract](/deployment/operations/).
+
+## Refusing cross-origin writes
+
+The browser decides which cookies travel with a request, so a write
+can carry your session cookie even when another site's page sent it.
+`SameSite=Lax` stops most of these, but it treats every subdomain of
+your domain as the same site. `CrossOriginGuard` refuses a browser
+write whose page stands at another origin. Mount it once at the root
+of your router, before any route:
+
+```go
+router.Use(authkit.CrossOriginGuard(logger))
+```
+
+A nil `logger` writes to `slog.Default`. The guard is the standard
+library's `http.CrossOriginProtection` with authkit's error answer.
+
+What passes:
+
+- Reads: `GET`, `HEAD` and `OPTIONS`. Never change data on a read.
+- Writes from your own pages.
+- Requests with neither a `Sec-Fetch-Site` nor an `Origin` header.
+  Scripts, other servers and API clients send neither.
+
+Every browser since 2023 names where a request came from in
+`Sec-Fetch-Site`. An older browser sends only `Origin`, and the guard
+compares its host with the request's `Host` header. It never compares
+the scheme, so send `Strict-Transport-Security` to keep older browsers
+on HTTPS. Behind a proxy, pass the visitor's `Host` header through
+unchanged.
+
+A refused write gets a `403` with the code `request_cross_origin`.
+The server logs `write refused` with the reason `fetch-site` when the
+browser sent `Sec-Fetch-Site`, or `origin` when it sent only `Origin`.
