@@ -7,12 +7,12 @@ description: Seven ready-made commands that create, list, change and disable the
 gives your program seven account commands over the accounts that the
 [`authkit/postgres` store](/authentication/persistence/) keeps. With
 them you create the first admin of a fresh database, and change a
-role or disable an account from a shell. Add both modules, since
-`gonsole/auth` alone would bring in an older `gonsole`:
+role or disable an account from a shell. Add both modules, at
+versions that work together:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.5.0
-go get github.com/gopherium/framework/gonsole/auth@v0.3.0
+go get github.com/gopherium/framework/gonsole@v0.6.0
+go get github.com/gopherium/framework/gonsole/auth@v0.4.0
 ```
 
 The package is named `auth`, like the authkit value in the
@@ -87,7 +87,7 @@ seventh, `account:records`.
 
 | Command | What it does | Writes |
 | --- | --- | --- |
-| `account:create-admin` | creates an account under a role | at once |
+| `account:create-admin -email <address> -name <name> -role <role>` | creates an account under a role | at once |
 | `account:grant-role -role <role>` | gives the role to every account holding none | dry run until `-yes` |
 | `account:list` | lists every account and its role, offers `-json` | never |
 | `account:role <email> <role>` | sets one account's role | dry run until `-yes` |
@@ -115,6 +115,19 @@ printf '%s\n' "$PASSWORD" | myapp account:create-admin \
 `account:grant-role -yes` also runs your `Migrations` before it
 writes. The other commands expect them to have run, so on a new
 database run `myapp migrate` first.
+
+`account:create-admin` and `account:grant-role` stop at once when a
+flag they need is missing:
+
+```text
+$ myapp account:grant-role -as maria.perez@example.com
+myapp: account:grant-role wants -role <role>
+```
+
+`account:create-admin` needs `-email`, `-name` and `-role`, and
+`account:grant-role` needs `-role`. A line that leaves one out, or
+leaves it empty or spaces only, exits 2 and prints the help page. It
+stops before any schema step or account check.
 
 For demo data, call `accounts.EnsureAccounts` from your
 `Program.Seed`. It takes a store, such as
@@ -149,8 +162,8 @@ with exit 1:
 It checks your own commands too. So list their permissions in
 `Capabilities` as well, such as `manage_reports`.
 
-The four commands also refuse three changes. Each refusal exits 1,
-on dry runs too, and is not recorded:
+The four commands also refuse three changes. A run that tries one
+exits 1, on dry runs too, and leaves no record:
 
 - giving a role, or changing an account under a role, when that role
   carries a permission the acting account's role lacks
