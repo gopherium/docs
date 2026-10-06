@@ -1,6 +1,6 @@
 ---
 title: Lists with DataViews
-description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, confirmations, bulk messages, uploads, its Spanish chrome, and the table look for lists that stay custom.
+description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, confirmations, renames, bulk messages, uploads, its Spanish chrome, and the table look for lists that stay custom.
 ---
 
 DataViews is the WordPress list component. It draws the search box,
@@ -381,6 +381,72 @@ button at the end. While `busy`, the confirm button shows a spinner
 and ignores a second press. `failure` shows an error notice inside
 the modal, above the buttons. Give the action a `modalHeader` and
 `modalSize: 'small'` for the small modal with a title.
+
+## Renaming an item
+
+A rename asks for one new name. `RenameBody` is the body of that
+modal: a field that starts with the current name, a minimal Cancel and
+the submit button:
+
+```tsx
+import { RenameBody, useToaster } from '@gopherium/godmin'
+
+function RenameModal({ items: [post], closeModal }: RenderModalProps<Post>) {
+	const toaster = useToaster()
+	const [busy, setBusy] = useState(false)
+	const [failure, setFailure] = useState<string>()
+	const rename = async (title: string) => {
+		setBusy(true)
+		setFailure(undefined)
+		try {
+			await renamePost(post.id, title)
+		} catch {
+			setBusy(false)
+			setFailure('The name could not be updated.')
+			return
+		}
+		toaster.show('Name updated.')
+		closeModal?.()
+	}
+	return (
+		<RenameBody
+			name={post.title}
+			fieldLabel="Name"
+			submitLabel="Rename"
+			cancelLabel="Cancel"
+			busy={busy}
+			failure={failure}
+			onSubmit={(title) => void rename(title)}
+			onCancel={closeModal}
+		/>
+	)
+}
+
+const renameAction: Action<Post> = {
+	id: 'rename',
+	label: 'Rename',
+	modalHeader: 'Rename',
+	modalSize: 'small',
+	modalFocusOnMount: 'firstContentElement',
+	RenderModal: RenameModal,
+}
+```
+
+The submit button stays disabled while the field is blank or still
+holds `name`, so nobody writes the same name twice. Enter in the field
+does what the submit button does. `onSubmit` gets the name exactly as
+typed, and your code does the write and the toast. While `busy`, the
+submit button shows a spinner and ignores a second press. `failure`
+shows an error notice under the field, and the field keeps what the
+reader typed, so they can fix it and try again.
+
+Every word comes from you: the field label, both button labels and
+the failure. Pass them through your translations.
+
+`modalFocusOnMount: 'firstContentElement'` puts the cursor in the
+field when the modal opens, as the WordPress rename does. Without it,
+the modal window itself takes the focus, and the reader has to press
+Tab to reach the field.
 
 ## An upload button
 
