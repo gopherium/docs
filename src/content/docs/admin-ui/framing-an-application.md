@@ -96,26 +96,23 @@ router.
 
 ## Coloring the regions
 
-`chromeColor` sets the theme color of the whole frame, and
-`canvasColor` overrides it for the canvas only. Note the nesting:
-setting `chromeColor` alone tints the canvas too, because the
-canvas inherits from the frame. Set both when the rail and the
-canvas should differ. Each accepts the same color values as the
-design system theme provider.
+`chromeColor` sets the theme color of the frame, and `canvasColor`
+the one of the canvas. Each accepts the same color values as the
+design system theme provider. Pass neither and the frame looks like
+WordPress: the chrome gets `{ background: '#26292b' }` and the
+canvas `{ background: '#fcfcfc' }`. Up to godmin 0.15.0 the frame
+set no colour of its own, so an application that passes none sees
+its frame change.
 
 The theme provider works out every grey from the background you
 give it. The frame paints its chrome with the weak surface of that
-theme, so a `#1e1e1e` chrome background draws the rail and the top
-bar in `#171717`. The WordPress admin bar is `#1d2327`, a colour of
-its own. godmin paints the colour your theme gives and never
-replaces it.
+theme, so `#26292b` draws the rail and the top bar in `#1d2428`, one
+step from the WordPress admin bar, `#1d2327`.
 
 The canvas paints the strong surface of its theme, which is white,
-like a WordPress page. For the exact WordPress greys, give the canvas
-the design system default background, `{ background: '#fcfcfc' }`.
-A white background moves every grey a step lighter: the row lines
-turn `#f3f3f3` instead of `#f0f0f0`, and muted text `#717171`
-instead of `#707070`.
+like a WordPress page. `#fcfcfc` gives the exact WordPress greys, row
+lines `#f0f0f0` and muted text `#707070`. A white background moves
+every grey a step lighter.
 
 Dialogs, drawers, menus, popovers and selects you open inside the
 frame do not take these colors. They use the `AdminRoot` color

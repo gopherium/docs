@@ -139,11 +139,14 @@ godmin. `godminDedupe` lists it, which makes `godminSingleCopy` stop
 the build if a second copy slips into your bundle. One copy means
 one live region on the page.
 
-`Toaster` takes three props:
+`Toaster` takes four props:
 
 - `dismissAfter`, how many milliseconds a toast stays. The default
   is 6000.
 - `limit`, how many toasts stay on screen at once. The default is 3.
+- `nameLength`, how many characters of a name a toast shows before
+  an ellipsis. The default is 45. See
+  [naming an item in a toast](/admin-ui/lists/#naming-an-item-in-a-toast).
 - `dismissLabel`, the name of the close button. On a toast with no
   action it is the hint a screen reader reads after the message. No
   tooltip shows when the pointer rests on the toast, as in WordPress.

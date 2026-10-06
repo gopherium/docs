@@ -1,6 +1,6 @@
 ---
 title: Lists with DataViews
-description: Hosting a WordPress DataViews list in a godmin page, paging it on the server, bulk actions, its Spanish chrome, and the table look for lists that stay custom.
+description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, confirmations, bulk messages, uploads, its Spanish chrome, and the table look for lists that stay custom.
 ---
 
 DataViews is the WordPress list component. It draws the search box,
@@ -63,6 +63,79 @@ The canvas names its side padding `--godmin-canvas-gutter`: 24px,
 padding is `--godmin-canvas-gutter-block`, 16px. Read them for
 anything else that has to line up with the canvas edge.
 
+## The view in the address
+
+`useListView` keeps the search, the filters, the sort and the page of
+a list in the address. A reader who reloads or shares the page gets
+the same rows. It comes from `@gopherium/godmin/router` and needs
+TanStack Router:
+
+```tsx
+import { listSearch, useListView } from '@gopherium/godmin/router'
+
+const usersRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/users',
+	validateSearch: listSearch,
+	component: UsersScreen,
+})
+
+function UsersScreen() {
+	const list = useListView<View>({
+		fields: ['email', 'role'],
+		titleField: 'name',
+		sort: { field: 'name', direction: 'asc' },
+		perPage: 20,
+	})
+	const { data, paginationInfo } = filterSortAndPaginate(users, list.view, fields)
+	return (
+		<Page title="Users" list>
+			<DataViews
+				data={data}
+				fields={fields}
+				paginationInfo={paginationInfo}
+				view={list.view}
+				onChangeView={list.onChangeView}
+				defaultLayouts={list.defaultLayouts}
+				selection={list.selection}
+				onChangeSelection={list.onChangeSelection}
+			/>
+		</Page>
+	)
+}
+```
+
+`View` is the DataViews view type, so `list.view` and the controls
+fit DataViews as they are. godmin itself never imports DataViews.
+
+The object you pass is what the list opens on. The address holds
+only what the reader changed, in the keys `search`, `page`,
+`perPage`, `sort`, `order` and `filters`, so a fresh list has a bare
+address. Other keys, such as a tab, stay as they are. A change
+replaces the address instead of adding a history entry, so Back
+leaves the list.
+
+`listSearch` keeps those keys and drops anything malformed. When the
+route holds a key of its own, add it:
+`validateSearch: (raw) => ({ ...listSearch(raw), status: raw.status })`.
+
+A list shows one layout at a time and no Layout menu: the table from
+640px and the list below. `layouts: { wide: 'grid', phone: 'list' }`
+names others, and `layoutSettings` says what a layout opens on, such
+as `{ grid: { layout: { previewSize: 230 } } }`. `phoneFields` names
+the fields the phone list shows. The columns a reader picks stay in
+memory while the list is open, apart for each layout. When the screen
+moves to another list address, for example from one content type to
+the next, the list forgets the picked columns and the ticked rows.
+
+A tap on a phone list selects nothing. `openOnTap(list, open)` gives
+you a handler that opens the record instead. Pass it as
+`onChangeSelection`. `list.phone` tells you which side of 640px the
+screen is on.
+
+Leave `perPage` out while you do not know it yet, for example while
+your settings load. The list then shows every row.
+
 ## The list fills the page
 
 A list page fills the canvas from the title down to the bottom edge.
@@ -101,6 +174,43 @@ and keeps 16px between itself and the list:
 	<DataViews {...props} />
 </Page>
 ```
+
+## A drop zone over a list
+
+Give an element the `godmin-list-overlay` class and put it after the
+list. It then covers the whole list region, toolbar and footer
+included, without the margin a notice takes. A WordPress `DropZone`
+is the usual one:
+
+```tsx
+<Page title="Media" list>
+	<DataViews {...props} />
+	<DropZone className="godmin-list-overlay" label="Drop files to upload" onFilesDrop={upload} />
+</Page>
+```
+
+The list stays the first child of its region, so its footer stays on
+the canvas bottom. The class works the same in the main column of a
+page with an `aside`, and inside a `godmin-list`.
+
+## Empty lists
+
+`ListEmpty` is what a list shows when it has no rows. Pass it to
+DataViews as `empty`:
+
+```tsx
+import { ListEmpty } from '@gopherium/godmin'
+import { people } from '@wordpress/icons'
+
+<DataViews
+	{...props}
+	empty={<ListEmpty icon={people} title="No users yet." hint="Add one with New user." />}
+/>
+```
+
+It draws the design system empty state, centred: the icon, the title
+as a heading and the hint under it. `hint` is optional. Leave it out
+when a search narrowed the list, as in `No users found.`
 
 ## Paging on the server
 
@@ -206,19 +316,117 @@ in the part above, and as
 [success toasts, failure notices](/admin-ui/loading-and-feedback/#success-toasts-failure-notices)
 explains.
 
+## Bulk messages
+
+`bulkNotes` turns the outcome into those two messages, in your own
+words:
+
+```tsx
+const notes = bulkNotes(orders, outcome, {
+	done: (count, only) => (only === undefined ? `${count} orders archived.` : `"${only.title}" archived.`),
+	failed: (failures, asked) => `${failures.length} of ${asked} orders could not be archived.`,
+})
+if (notes.toast !== undefined) {
+	toaster.show(notes.toast)
+}
+onFailure(notes.notice)
+```
+
+Pass the rows you gave `runEach` and its outcome. `done` runs when at
+least one row worked, with how many did. `only` is the row itself
+when the reader picked exactly one, so the message can name it.
+`failed` runs when at least one row failed, with every failure and
+its error, so it can count them or join their reasons. A message
+nothing calls for is `undefined`.
+
+## Confirming an action
+
+An action that cannot be undone asks first. DataViews opens a modal
+for an action that has a `RenderModal`, and `ConfirmBody` is the body
+of that modal:
+
+```tsx
+import { ConfirmBody } from '@gopherium/godmin'
+
+function TrashModal({ items, closeModal }: RenderModalProps<Post>) {
+	const [busy, setBusy] = useState(false)
+	const [failure, setFailure] = useState<string>()
+	const confirm = async () => {
+		setBusy(true)
+		const outcome = await runEach(items, (post) => trashPost(post.id))
+		setBusy(false)
+		if (outcome.failures.length > 0) {
+			setFailure('The post could not be moved to the trash.')
+			return
+		}
+		closeModal?.()
+	}
+	return (
+		<ConfirmBody
+			confirmLabel="Move to trash"
+			cancelLabel="Cancel"
+			busy={busy}
+			failure={failure}
+			onConfirm={() => void confirm()}
+			onCancel={closeModal}
+		>
+			Move the post to the trash?
+		</ConfirmBody>
+	)
+}
+```
+
+It draws the question, then a minimal Cancel and the solid confirm
+button at the end. While `busy`, the confirm button shows a spinner
+and ignores a second press. `failure` shows an error notice inside
+the modal, above the buttons. Give the action a `modalHeader` and
+`modalSize: 'small'` for the small modal with a title.
+
+## An upload button
+
+`FileButton` is a compact button that opens the file dialog:
+
+```tsx
+import { FileButton } from '@gopherium/godmin'
+import { upload } from '@wordpress/icons'
+
+<FileButton accept="image/*" multiple icon={upload} busy={uploading} onChoose={uploadAll}>
+	Upload media
+</FileButton>
+```
+
+It keeps a hidden file input beside it. `onChoose` gets the chosen
+files, and is not called when the reader closes the dialog with none.
+The input is emptied after each choice, so the same file can be
+chosen again. `icon` is drawn before the label. `inputLabel` names
+the hidden input, so a test can find it with `getByLabelText`. While
+`busy`, the button shows a spinner and ignores a press.
+
+## Naming an item in a toast
+
+A toast that names an item, such as `"Hello" moved to the trash.`,
+can get long. `name` on the toaster handle cuts a long name and ends
+it with an ellipsis:
+
+```tsx
+const toaster = useToaster()
+
+toaster.show(`"${toaster.name(post.title)}" moved to the trash.`)
+```
+
+A name of 45 characters or fewer shows in full. A longer one keeps
+its first 45, drops the spaces left at its end, and gets `…`. An
+emoji counts as one character and is never split. `Toaster` takes
+`nameLength` to change the 45.
+
 ## The canvas colour
 
-The canvas paints the strong surface colour of its theme, which is
-white, like a WordPress page. It also sets
-`--wp-dataviews-color-background` to that colour, so the list, its
-sticky header and its footer stay the same white as the page around
-them. You do nothing.
-
-For the exact WordPress greys, give the canvas the design system
-default background, `canvasColor={{ background: '#fcfcfc' }}`. The
-row lines are then `#f0f0f0` and the muted text `#707070`, as in
-WordPress. A white canvas background moves every grey a step
-lighter.
+The frame seeds the canvas with the design system default background,
+`#fcfcfc`. The canvas then paints white, the row lines are `#f0f0f0`
+and the muted text `#707070`, as in WordPress. The canvas also sets
+`--wp-dataviews-color-background`, so the list, its sticky header and
+its footer stay the same white as the page around them. You do
+nothing.
 
 ## The accent colour
 
@@ -285,6 +493,11 @@ avatar draws it. godmin trims the letter's line to the capital and
 the baseline with the CSS `text-box` property, so the letter stays
 centred whatever font the page uses. A browser without `text-box`
 draws it about a pixel low.
+
+Pass `size` to draw it at another width in pixels, such as
+`size={16}` for the small avatar WordPress puts before an author
+name. The letter keeps its share of the circle, 12px in 32px, so it
+is 6px at 16px.
 
 DataViews draws media in a square box with 4px corners and a thin
 dark ring. godmin rounds that box and drops the ring when it holds an

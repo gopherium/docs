@@ -89,6 +89,22 @@ Note that it is one global yes or no, not a width. Every query
 reports the same answer, so a component that distinguishes two
 breakpoints in a single render cannot be tested this way.
 
+## Checking a design system look
+
+The design system class names change between releases, so a test
+should not type them. `textClasses`, `badgeClasses` and
+`buttonClasses` draw a text, a badge or a button and answer the
+classes it got. Compare your element with them:
+
+```ts
+import { badgeClasses, buttonClasses } from '@gopherium/godmin/testing'
+
+expect([...badge.classList]).toEqual(badgeClasses('none'))
+expect([...button.classList]).toEqual(buttonClasses('solid', 'compact'))
+```
+
+They take the variant, the intent, and for a button the size.
+
 ## Checking the element package on React 19
 
 `@wordpress/element` 8.4.0 and older do not load on React 19. The

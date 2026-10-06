@@ -322,6 +322,7 @@ every admin screen runs into:
 | `godmin-table__title` | The cell naming the record, bold, regular on a list page, its link with no underline |
 | `godmin-table-scroll` | The box a wide table scrolls inside |
 | `godmin-list` | The box around a DataViews list inside a page section, lining its search and cells up with the text around it |
+| `godmin-list-overlay` | An element laid over a list region, such as a drop zone, set after the list |
 | `--godmin-canvas-gutter` | The canvas padding left and right: 24px, 16px below 640px, none on a full bleed canvas |
 | `--godmin-canvas-gutter-block` | The canvas padding above and below: 16px, none on a full bleed canvas |
 | `--godmin-rail-width` | The width of the rail, 300px, set on `:root` |
