@@ -470,8 +470,8 @@ with the other cells of its row.
 ## Avatars
 
 `InitialsAvatar` draws a round avatar with the first letter of a
-name, in white on a colour the name picks. Use it as the render of
-the view's `mediaField`:
+name, on a colour the name picks. Use it as the render of the view's
+`mediaField`:
 
 ```tsx
 import { InitialsAvatar } from '@gopherium/godmin'
@@ -486,11 +486,11 @@ const fields = [nameField, emailField, avatar]
 const view = { type: 'table', titleField: 'name', mediaField: 'avatar', fields: ['status'] }
 ```
 
-It is 32px wide with a 12px semibold white letter, and the name
-starts 8px after it, as in the WordPress subscriber list. The capital
-of the letter sits in the middle of the circle, as the WordPress
-avatar draws it. godmin trims the letter's line to the capital and
-the baseline with the CSS `text-box` property, so the letter stays
+It is 32px wide with a 12px semibold letter, and the name starts 8px
+after it, as in the WordPress subscriber list. The capital of the
+letter sits in the middle of the circle, as the WordPress avatar
+draws it. godmin trims the letter's line to the capital and the
+baseline with the CSS `text-box` property, so the letter stays
 centred whatever font the page uses. A browser without `text-box`
 draws it about a pixel low.
 
@@ -512,9 +512,10 @@ alone.
 
 The same name always gets the same colour, whatever its case. The six
 colours start with the blue, raspberry and purple of the WordPress
-subscriber avatars, then a green, an amber and a grey. All six reach
-4.5 to 1 against the white letter, the contrast a screen needs for
-small text. The avatar is hidden from screen readers, because the
+subscriber avatars, each with the pale letter WordPress draws on it,
+then a green, an amber and a grey with a white letter. All six reach
+4.5 to 1 against their letter, the contrast a screen needs for small
+text. The avatar is hidden from screen readers, because the
 name next to it already says who it is. It never loads a picture, so
 no address leaves your application.
 

@@ -76,6 +76,11 @@ The window is exported for your tests:
 import { SUPPORTED_WPDS } from '@gopherium/godmin'
 ```
 
+`SUPPORTED_WPDS` names the `@wordpress/ui` and `@wordpress/theme`
+windows only. The other design system peers, `@wordpress/icons`,
+`@wordpress/a11y` and `@wordpress/style-runtime`, have their windows
+in the peer ranges of godmin's `package.json`.
+
 ## Upgrading from godmin 0.7.0
 
 godmin 0.7.0 and older asked you to copy a patch for

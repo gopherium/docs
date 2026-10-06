@@ -96,10 +96,12 @@ wins. No `!important`, no specificity tricks.
 
 Two notes:
 
-- One rule intentionally sits outside the layer:
-  `body { position: relative }`. Overlays position themselves
-  against it, so overriding it breaks their backdrops. Leave it in
-  place.
+- A few rules sit outside the layer on purpose.
+  `body { position: relative }` is one: overlays position themselves
+  against it, so overriding it breaks their backdrops. The others set
+  DataViews inside a page, such as the list toolbar, the footer and
+  the avatar box. The DataViews stylesheet sits in no layer, so a
+  rule inside one would lose to it. Leave them in place.
 - The documented class names on the [screens
   page](/admin-ui/screens/#stylesheet-helpers) are the stable
   styling seam. The stylesheet's other class names, such as the
