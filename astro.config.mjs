@@ -91,6 +91,13 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Database',
+					items: [
+						{ slug: 'database/overview' },
+						{ slug: 'database/shares' },
+					],
+				},
+				{
 					label: 'Testing',
 					items: [
 						{ slug: 'testing/end-to-end' },
