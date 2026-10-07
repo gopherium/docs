@@ -149,9 +149,9 @@ want `-as <email>`, and your program needs
 Leave either one out and every run fails, even `version`. The module
 ships both.
 
+gonsole stops a missing or blank `-as` with exit 2. Otherwise
 `accounts.Authorize` checks the acting account before the command
-runs, dry runs included. A blank `-as` exits 2. It refuses these
-with exit 1:
+runs, dry runs included. It refuses these with exit 1:
 
 - an address no account holds
 - an account that is disabled or was never activated
