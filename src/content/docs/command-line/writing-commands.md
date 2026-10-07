@@ -137,8 +137,11 @@ the old spelling cannot start with a base command such as `list`.
 The acting account is the account of the person who runs the
 command. Set `Capability` to a permission it must hold, such as
 `manage_reports`. The command then wants `-as <email>`, which `Run`
-reads as `call.Actor`. gonsole does not look the account up. Your
-program does, in two functions it sets on `Program`.
+reads as `call.Actor`. A line that leaves `-as` out, or leaves it
+empty or spaces only, exits 2 with
+`myapp: report:create wants -as <email>` and the help page.
+gonsole does not look the account up. Your program does, in two
+functions it sets on `Program`.
 
 A program whose accounts live in the
 [`authkit/postgres` store](/authentication/persistence/) takes both
