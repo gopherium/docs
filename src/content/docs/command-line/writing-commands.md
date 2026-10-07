@@ -70,9 +70,10 @@ it names the kind of value, such as `string` or `int`, or just
 
 Each name in `Needs` must be a flag that `Flags` declares and that
 takes a value, unlike a `bool` flag. Otherwise the command breaks a
-rule, like a missing summary. Never name a flag declared with
-`fs.Func` in `Needs`. gonsole reads such a flag as empty, so every
-run would exit 2, even one that sets it.
+rule, like a missing summary. gonsole checks the text the line types
+for the flag, not the value it reads back. So a flag declared with
+`fs.Func` works in `Needs` too. If the line gives the flag twice, the
+last text counts.
 
 `Needs` only checks that a value is there. To refuse a bad value,
 such as an owner without `@`, `Run` returns `gonsole.Misuse`. It
