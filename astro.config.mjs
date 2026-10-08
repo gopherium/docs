@@ -94,6 +94,7 @@ export default defineConfig({
 					label: 'Database',
 					items: [
 						{ slug: 'database/overview' },
+						{ slug: 'database/sqlite' },
 						{ slug: 'database/shares' },
 					],
 				},
