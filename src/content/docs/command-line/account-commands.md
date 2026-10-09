@@ -80,6 +80,21 @@ holds the roles that at least one enabled account must always keep.
 left out carries none. The commands call it on each run, so it can
 include the roles your plugins add.
 
+When your program keeps its roles in a registry that your plugins
+fill, build this vocabulary with `RolesFrom` instead of by hand. It
+takes any value that answers `Roles()` and `CapabilitiesOf(role)`,
+and the privileged roles your program names:
+
+```go
+func roles(context.Context, gonsole.Call) (accounts.Roles, error) {
+	return accounts.RolesFrom(registry, []string{"admin"}), nil
+}
+```
+
+`Known` is then every role the registry holds, and `Capabilities`
+holds what each of them carries. A role that a plugin adds to the
+registry reaches the account commands with no change to `roles`.
+
 `Commands` returns six of the commands below. `Records` returns the
 seventh, `account:records`.
 
