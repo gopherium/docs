@@ -124,6 +124,48 @@ own. It takes a lock and returns its release, and gonsole holds it
 around every migration. Never set both, or a step can wait on the
 program's own lock.
 
+## One database handle
+
+A program on SQLite keeps one database handle per process. Set
+`Program.Open` to a function that returns that handle without
+connecting, such as one that calls
+[`dbkit/sqlite`](/database/sqlite/)'s `Open`:
+
+```go
+Open: func(_ context.Context, databaseURL string) (*sql.DB, error) {
+	return sqlite.Open(databaseURL, options)
+},
+```
+
+Every part of a run then asks for it with `call.DB(ctx)`: your
+commands, `Plugins`, `Validate`, `Seed`, `Authorize` and `Record`.
+The first call opens it, every later call gets the same handle, and
+gonsole closes it when the run ends, after the plugins release. A
+program without `Open` works as before.
+
+A schema step can run on that handle. Set `RunOn` in place of `Run`,
+and the step gets the `*sql.DB`:
+
+```go
+Migrations: []gonsole.Step{
+	{Name: "reports", RunOn: migrateReports},
+},
+```
+
+A step sets exactly one of `Run` and `RunOn`. Every command refuses
+a program with a step that sets both or neither, or a `RunOn` step
+without `Open`. On SQLite, give every step `RunOn`, so no step opens
+a second handle.
+
+`help` and `list` only describe commands, so there `call.DB`
+answers `gonsole.ErrDescribing`. Check `call.Describe` in `Plugins`
+before you ask. `check` may ask for the handle and still stays
+offline, because the opener never connects.
+
+To migrate when your server starts, call `step.Apply(ctx, address,
+db)`, which runs whichever form the step sets. In a test that builds
+a `gonsole.Call` by hand, `call.WithDB(db)` gives it a ready handle.
+
 ## Renamed commands
 
 `Program.Renamed` keeps an old spelling with a space working after
