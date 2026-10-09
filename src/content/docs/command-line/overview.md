@@ -131,7 +131,7 @@ also uses `golang.org/x/text`, built only into a program that imports
 it. Add gonsole with:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.6.0
+go get github.com/gopherium/framework/gonsole@v0.7.0
 ```
 
 Read on with [Writing commands](/command-line/writing-commands/),

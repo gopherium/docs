@@ -11,8 +11,8 @@ role or disable an account from a shell. Add both modules, at
 versions that work together:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.6.0
-go get github.com/gopherium/framework/gonsole/auth@v0.4.0
+go get github.com/gopherium/framework/gonsole@v0.7.0
+go get github.com/gopherium/framework/gonsole/auth@v0.5.0
 ```
 
 The package is named `auth`, like the authkit value in the
