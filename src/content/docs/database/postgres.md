@@ -324,3 +324,31 @@ the test databases and to call `pg_stat_file`. A superuser can do
 both. Any other role needs membership in `pgtdbuser`, the pgtestdb
 role that owns every test database, and `EXECUTE` on
 `pg_stat_file(text, boolean)`.
+
+`NewSwept` does both in one call. The first call for an address sweeps
+the server, then every call hands out a fresh database as `New` does:
+
+```go
+func TestSavesAnItem(t *testing.T) {
+	address := pgtest.NewSwept(t, testServer, cfg.TestDatabaseMaxAge, migrator)
+	h, err := postgres.Open(address, postgres.Options{MaxConns: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = h.Close() })
+}
+```
+
+Each test process sweeps each address at most once. Tests that start
+while that sweep runs wait for it, and the first call's age is the one
+it uses. An age of zero or less fails the test. A failed sweep, such as
+one whose role lacks the rights above, is logged on the test that ran
+it, and every test still gets its fresh database. `go test -v` shows
+that line.
+
+The test binaries of one `go test ./...` each sweep once, and they stay
+out of each other's way. A sweep keeps a database that is in use or
+younger than the age, and skips one that another sweep dropped first.
+
+Templates stay. Each migration hash keeps one, a few tens of megabytes,
+and neither `Sweep` nor `NewSwept` drops it.
