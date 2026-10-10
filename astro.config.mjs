@@ -39,6 +39,13 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Authorization',
+					items: [
+						{ slug: 'authorization/overview' },
+						{ slug: 'authorization/plugin-roles' },
+					],
+				},
+				{
 					label: 'Plugins',
 					items: [
 						{ slug: 'plugins/overview' },
