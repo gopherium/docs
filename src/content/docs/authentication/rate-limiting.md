@@ -42,7 +42,7 @@ and windows as plain function calls, counted per key, and you choose
 the key:
 
 ```go
-limiter := ratelimit.NewLimiter(ratelimit.Config{TrustedProxies: cidrs})
+limiter := ratelimit.NewLimiter(ratelimit.Config{})
 
 allowed, retryAfter, err := limiter.Check(key)
 if err != nil {
@@ -93,8 +93,10 @@ explicit trust boundary:
 - With no trusted proxies configured, `X-Forwarded-For` is ignored and
   the connecting address is the key. Spoofed headers do nothing.
 - With `TrustedProxies` set, the client IP is taken from the forwarded
-  chain, trusting only the configured ranges. A client rotating forged
-  header entries still lands in one bucket.
+  chain only when the connection comes from inside those ranges, so
+  they must cover your proxy's address. Any other connection is keyed
+  by its own address. A client rotating forged header entries still
+  lands in one bucket.
 
 Parse the configuration from your environment with
 `ParseTrustedProxies`, which validates CIDR ranges and rejects bare

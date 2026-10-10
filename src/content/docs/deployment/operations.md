@@ -38,12 +38,12 @@ relies on both when an older browser writes.
 The login rate limiter counts failed attempts per client IP. Behind a
 proxy, every request arrives from the proxy's own address, so the real
 client address comes from the `X-Forwarded-For` header. Since anyone
-can write that header, it is trusted only from proxy addresses you
-name.
+can write that header, `authkit/ratelimit` 0.3.1 and later trust it
+only from proxy addresses you name.
 
-If you name none, every visitor looks like the proxy and they all
-share one budget. A handful of failed logins by one person then locks
-out login **for everybody**.
+If you name none, or a range that misses the proxy's address, every
+visitor looks like the proxy and they all share one budget. A handful
+of failed logins by one person then locks out login **for everybody**.
 
 Set your proxy's network range in the application config, which passes
 it through `ParseTrustedProxies` into `ratelimit.Config.TrustedProxies`.
