@@ -285,6 +285,11 @@ and value address, and a host with a colon, such as an IPv6 literal.
 Give such a server a host name. `URL` builds the same escaped address
 from a `pgtestdb.Config`.
 
+pgtest has no default server and reads no environment variable, so
+`testServer` comes from your own settings. Read it from an environment
+variable in `TestMain`, and stop the run when that variable is empty,
+so a missing setting never sends your tests to some other server.
+
 `New` checks the address with `CheckAddress` too. It also refuses an
 address pgx cannot parse, and an address whose query sets `password`
 or `sslpassword`. Write the server password before the `@`, and set a
