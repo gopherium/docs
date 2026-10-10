@@ -54,6 +54,13 @@ is five modules so you can stop at whichever layer suits you:
 | [`authkit/ratelimit`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/ratelimit) | Login rate limiting behind reverse proxies |
 | [`@gopherium/react-auth`](https://www.npmjs.com/package/@gopherium/react-auth) | The React client, from hooks to ready-made screens |
 
+**[Authorization](/authorization/overview/)** decides what each role
+may do:
+
+| Brick | What it is |
+| --- | --- |
+| [`goncierge`](https://pkg.go.dev/github.com/gopherium/framework/goncierge) | A registry of roles and their capabilities, open to plugins |
+
 **[Plugins](/plugins/overview/)** lets you build an application out
 of compile-time plugins:
 
