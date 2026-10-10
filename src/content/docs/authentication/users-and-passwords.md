@@ -101,3 +101,23 @@ an in-memory implementation. It is worth using rather than writing
 your own fake, because it reproduces the behaviours that are easy to
 forget: expired sessions are not found, sessions of disabled users
 are not found, and a duplicate email is rejected.
+
+`testkit.Store` passes the same contract as `authkit/postgres`, the
+[`storetest`](https://pkg.go.dev/github.com/gopherium/gouncer/authkit/storetest)
+suite. So it also keeps the last enabled account under a privileged
+role, and takes calls from several goroutines at once. When you write
+a store of your own, run that suite against it:
+
+```go
+func TestMyStoreKeepsTheContract(t *testing.T) {
+	storetest.Run(t, func(t *testing.T) storetest.Fixture {
+		store := newMyStore(t)
+		return storetest.Fixture{Store: store, Plant: store.plantToken}
+	})
+}
+```
+
+`Run` gives each check a fresh store from your function. `Plant`
+writes a token past the store's own checks, which a few checks need.
+A store that can hold an account in an open write transaction also
+runs `RunHeld`, with a `Hold` hook in the fixture.
