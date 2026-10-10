@@ -114,6 +114,23 @@ one you can recreate from scratch.
 - Email uniqueness ignores case. Every write goes through
   `gouncer.NewUser`, which lowercases first.
 
+## Sweeping once
+
+`authkit.NewReaper` sweeps every hour while your server runs. A
+scheduled job that runs on its own calls `authkit.Sweep` instead. It
+deletes the sessions, and on a store that keeps tokens the tokens,
+that expired by the moment you pass, and returns how many of each it
+removed:
+
+```go
+sessions, tokens, err := authkit.Sweep(ctx, store, time.Now().UTC())
+```
+
+Your context bounds the whole sweep. A failed half counts nothing and
+its error matches `authkit.ErrSweepSessions` or
+`authkit.ErrSweepTokens`, so `errors.Is` tells them apart. When only
+the token half fails, `sessions` still holds the sessions it removed.
+
 ## Testing against a real database
 
 The module ships a
