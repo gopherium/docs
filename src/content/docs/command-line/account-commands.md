@@ -80,10 +80,11 @@ holds the roles that at least one enabled account must always keep.
 left out carries none. The commands call it on each run, so it can
 include the roles your plugins add.
 
-When your program keeps its roles in a registry that your plugins
-fill, build this vocabulary with `RolesFrom` instead of by hand. It
-takes any value that answers `Roles()` and `CapabilitiesOf(role)`,
-and the privileged roles your program names:
+When your plugins fill a registry of roles, such as a
+[`goncierge`](/authorization/overview/) `Registry`, build this
+vocabulary with `RolesFrom` instead of by hand. It takes any value
+that answers `Roles()` and `CapabilitiesOf(role)`, and the
+privileged roles your program names:
 
 ```go
 func roles(context.Context, gonsole.Call) (accounts.Roles, error) {
