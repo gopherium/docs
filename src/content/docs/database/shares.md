@@ -109,7 +109,8 @@ says the statement writes:
 - A function that writes, such as `nextval`, still reads as a read.
 - `SELECT ... FOR UPDATE` reads, but a read-only session refuses it.
 - A backslash in a PostgreSQL string makes the statement write. Pass
-  such text as a parameter.
+  such text as a parameter, as a
+  [LIKE search](/database/overview/#searching-with-like) does.
 
 ## Wrapping the share
 

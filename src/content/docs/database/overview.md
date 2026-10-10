@@ -68,6 +68,31 @@ functions, err := dbkit.NewFunctionList(dbkit.CaseFold())
 SELECT id FROM core_items WHERE casefold(title) = casefold($1)
 ```
 
+## Searching with LIKE
+
+In a `LIKE` pattern, `%` matches any text and `_` matches any one
+character. A search that wraps the typed text in `%` signs also
+reads the `%` and `_` the person typed as wildcards. A search for
+`50%_off` then finds `500_off` and `50x_off` too.
+
+`dbkit.EscapeLike` puts a backslash before every `%`, `_` and
+backslash in the term, so each one matches only itself. Pass the
+backslash as a parameter after `ESCAPE`. The query is the same on
+both engines:
+
+```go
+rows, err := share.Query(ctx,
+	"SELECT id, title FROM core_items WHERE title LIKE $1 ESCAPE $2",
+	"%"+dbkit.EscapeLike(term)+"%", `\`)
+```
+
+Keep the `ESCAPE` clause. SQLite has no escape character of its
+own, so without it the escaped term matches nothing there. Keep the
+backslash out of the query text too. PostgreSQL reads `ESCAPE '\'`
+fine, but a backslash in a PostgreSQL string makes the share report
+the statement as a write, as [the observer](/database/shares/#the-observer)
+explains.
+
 ## Names and types on SQLite
 
 Several owners keep their tables in the one SQLite file, so they
