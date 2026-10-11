@@ -1,6 +1,6 @@
 ---
 title: Persistence
-description: The PostgreSQL store, the database schema it owns, and how its migrations sit beside yours.
+description: The PostgreSQL and SQLite stores, the tables they own, and how their migrations sit beside yours.
 ---
 
 `authkit/postgres` stores users and sessions in PostgreSQL, so you do
@@ -121,6 +121,45 @@ one you can recreate from scratch.
 - Email uniqueness ignores case. Every write goes through
   `gouncer.NewUser`, which lowercases first.
 
+## On SQLite
+
+`authkit/sqlite` keeps the same accounts in an SQLite file. It never
+opens a database itself. It takes the one handle your program opened
+with [`dbkit/sqlite`](/database/sqlite/), so the auth tables live in the
+same file as the rest of your data:
+
+```go
+lock := authkitsqlite.MigrateOptions{LockWait: cfg.MigrateLockWait, LockPoll: cfg.MigrateLockPoll}
+if err := authkitsqlite.Migrate(ctx, handle, lock); err != nil {
+	return err
+}
+store := authkitsqlite.NewUserStore(handle)
+```
+
+SQLite has no schemas, so the tables carry a prefix instead:
+`auth_users`, `auth_sessions` and `auth_tokens`, with the record of
+applied migrations in `auth_goose_db_version`. Your own migrations keep
+their own record table beside it, the same rule as above.
+
+`Migrate` takes the file's migration lock first, so two copies of your
+program starting at once never migrate the same file together.
+`LockWait` is how long it waits for that lock, and `LockPoll` how often
+it tries. Both come from your own settings.
+
+The store keeps the same contract as the PostgreSQL one, and every
+point in the list above holds for it. A few things differ:
+
+- Every write runs in a transaction that holds the whole file's write
+  lock from its first statement. Another writer waits up to the busy
+  timeout you gave `dbkit/sqlite`, then fails.
+- A failure from a busy or locked file, or from a constraint, carries
+  dbkit's error class. `errors.Is(err, dbkit.ErrBusy)` tells you to try
+  again later.
+- `ListUsers` sorts by name without regard to the case of A to Z, then
+  by id. Other letters sort by their bytes.
+- There is no `Within`, and no account command takes an address. Run
+  the account commands on your program's one handle.
+
 ## Sweeping once
 
 `authkit.NewReaper` sweeps every hour while your server runs. A
@@ -152,3 +191,14 @@ your tests first.
 
 You can use the same helper for your own tests that need the `auth`
 schema to exist.
+
+On SQLite, `dbkit/sqlite/sqlitetest` gives each test its own copy of
+one migrated file. Build that file once with `authkitsqlite.Migrate`:
+
+```go
+template, err := sqlitetest.NewTemplate(ctx, opts, func(ctx context.Context, db *sql.DB) error {
+	return authkitsqlite.Migrate(ctx, db, lock)
+})
+```
+
+Each test then opens its copy with `template.Open(t)`.
