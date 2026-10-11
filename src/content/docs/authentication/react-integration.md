@@ -54,7 +54,14 @@ back, from anywhere in the application, with no page reload.
 
 - `useSession()` reads the signed-in user from the cache: id, email,
   name and role. The role is plain text from your server, empty when
-  the server sends none.
+  the server sends none. When the server has a
+  [capability source](/authentication/sessions-over-http/#requirecapability),
+  the user also carries `capabilities`. It carries `grantable`, the
+  roles it may hand out, when that source also answers `Grantable`, as
+  goncierge's registry does.
+- `can(user, capability)` answers whether that user holds a
+  capability. A missing user, or a user whose session carries no list,
+  holds none.
 - `useLogout()` logs out and clears every cached query except the
   session itself, so one user's data cannot show up after the next
   person logs in.
@@ -188,7 +195,7 @@ the new account, and `setUserRole(id, role)` changes one.
 v0.8.0 or older names that write `rank`, so it answers 404 until you
 upgrade it too.
 
-A role change can be refused three ways, and each is a typed error
+A role change can be refused six ways, and each is a typed error
 a screen can catch:
 
 | Error | The server said |
@@ -196,11 +203,18 @@ a screen can catch:
 | `RoleRefusedError` | The signed-in account may not change roles |
 | `SelfRoleError` | An account tried to change its own role |
 | `LastPrivilegedError` | It would remove the last administrator |
+| `RoleUnknownError` | No role registry declares that role |
+| `RoleBeyondReachError` | The signed-in account may not hand out that role, or change that account |
+| `RoleChangedError` | The account's role changed before the write landed, so reload it |
 
-What a role means is your application's decision. Keep the answer
-in one function, such as `can(role, 'manage_users')`, and ask that
-function from every screen. Then a screen never compares role names
-itself.
+`createUser`, `invite` and `setUserDisabled` throw `RoleUnknownError`
+and `RoleBeyondReachError` as well, and `setUserDisabled` throws
+`RoleChangedError` too. `RoleUnknownError` is also a `ValidationError`, so a form that
+shows validation messages shows it too.
+
+Ask `can(user, 'users.manage')` from your screens, never compare role
+names. Build a role menu from the session user's `grantable` list,
+which arrives when the server's source answers `Grantable`.
 
 ## Languages
 
@@ -244,10 +258,13 @@ turns a wrong password into a crash instead of a form message.
 | `requestPasswordReset` | Answer nothing about the address. Throw `RateLimitedError` when the limiter refuses |
 | `resetPassword` | Throw `InvalidTokenError` for a dead link, `ValidationError` for a refused password |
 
+If your server checks roles, the four admin writes also throw
+`RoleUnknownError` and `RoleBeyondReachError`, as listed above.
+
 `InvalidCredentialsError`, `RateLimitedError`, `UnauthorizedError` and
-`InvalidTokenError` come from the main entry point. `EmailTakenError`
-and `ValidationError` come from `/admin`, and `ValidationError` is
-also exported from the main entry point.
+`InvalidTokenError` come from the main entry point. `EmailTakenError`,
+`ValidationError` and the role errors come from `/admin`, and
+`ValidationError` is also exported from the main entry point.
 
 The `invite` answer is checked, not trusted. A custom transport that
 answers `delivered: false` without an activation link is treated as a
@@ -301,9 +318,11 @@ tests and cleans up the DOM between them.
 `seedSession(client, user)` puts a signed-in user straight into the
 query cache, so a test can render a component behind the gate without
 logging in over the network first. `defaultUser` is the canned account
-most tests sign in as. It holds no role. `userWithRole('editor')` cans
-an account under any role, with its own stable id, so a test can walk
-both sides of a gate. `roleOk()` answers a role change with success.
+most tests sign in as. It holds no role. `userWithRole('editor')` cans an account under any
+role, with its own stable id, so a test can walk both sides of a gate.
+`userWithCapabilities('editor', ['posts.edit'], ['author'])` cans one
+that also carries capabilities and the roles it may hand out.
+`roleOk()` answers a role change with success.
 
 The canned handlers cover every outcome each endpoint can produce,
 from `loginOk` to `loginRateLimited`. The invitation and reset routes
