@@ -100,6 +100,10 @@ one you can recreate from scratch.
   transaction, so two administrators removing each other at the same
   moment cannot both get through. Pass an empty set of privileged
   roles and the rule is off.
+- `SetUserRoleFrom` and `SetUserDisabledFrom` add one condition: the
+  account must still hold the role the caller checked. If it moved,
+  nothing is written and the answer is `authkit.ErrRoleChanged`. The
+  admin handlers use them when they check roles against a registry.
 - `GrantRoleToRoleless` gives a role to every account holding none and
   returns how many it changed. It refuses an empty role with
   `gouncer.ErrEmptyRole`, and running it twice changes nothing the
