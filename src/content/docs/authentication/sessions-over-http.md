@@ -13,10 +13,11 @@ populates `r.PathValue`.
 
 ```go
 auth := authkit.New(authkit.Config{
-	Store:      store,                      // any gouncer.Store
-	CookieName: "__Host-myapp_session",     // empty applies "__Host-session"
-	SessionTTL: 0,                          // zero applies gouncer's default
-	Privileged: gouncer.Roles{"admin"},     // empty admits every role
+	Store:        store,                  // any gouncer.Store
+	CookieName:   "__Host-myapp_session", // empty applies "__Host-session"
+	SessionTTL:   0,                      // zero applies gouncer's default
+	Privileged:   gouncer.Roles{"admin"}, // empty admits every role
+	Capabilities: registry,               // nil fills no capabilities
 })
 ```
 
@@ -24,7 +25,10 @@ One `Config` value carries every knob. `SessionTTL` bounds the issued
 session and the cookie's `MaxAge` from the same value, so the two
 expiries cannot drift apart. `Privileged` names the roles that pass
 `RequirePrivilege`, explained below. authkit copies the list, so
-changing your slice later does not change the gate.
+changing your slice later does not change the gate. `Capabilities` is
+optional: a role registry such as
+[goncierge](/authorization/overview/), read by
+[`RequireCapability`](#requirecapability).
 
 ## The handlers
 
@@ -87,8 +91,12 @@ request context:
 identity := authkit.IdentityFromContext(r.Context())
 ```
 
-`Identity` carries the id, email, name and role, and deliberately
-nothing else. Credential material never enters the request context.
+`Identity` carries the id, email, name and role. With a
+`Capabilities` source it also carries `capabilities`, what the role
+may do. If that source also answers `Grantable`, as goncierge's
+registry does, it carries `grantable`, the roles the account may hand
+out. Each list is sent empty rather than missing. Without a source
+neither key appears. Credential material never enters the request context.
 For middleware of your own that composes with authkit's,
 `WithIdentity` is exported too.
 
@@ -106,11 +114,25 @@ account with no role never passes. If `Privileged` is empty the
 middleware admits everyone, so adding it to a route changes nothing
 until you name the roles.
 
-The role is plain text. authkit stores it and checks it against your
-list. What each role may do is your application's decision. Keep
-those decisions in one place in your code, asking "may this role do
-X" rather than "is this role admin", so you can change the rules
-later without touching every handler.
+A check like "is this role admin" ties every route to your role names.
+For anything finer, ask for a capability instead.
+
+## RequireCapability
+
+```go
+mux.Handle("POST /api/events", auth.RequireSession(auth.RequireCapability("events.manage")(http.HandlerFunc(handleEvents))))
+```
+
+`RequireCapability` admits a request whose identity carries the
+capability. Any other gets a 403 with the code `capability_missing`,
+and `meta.capability` names the capability.
+
+Mind the opposite default. Without a `Capabilities` source no identity
+carries a capability, so every request is refused.
+
+The capabilities are read once per request, when `RequireSession`
+resolves the session. A grant or a revoke in the registry counts from
+the next request.
 
 ## Composing error responses
 
@@ -152,6 +174,10 @@ The codes authkit can answer with:
 | `credentials_invalid` | Wrong email or password |
 | `session_absent` | No usable session cookie |
 | `role_insufficient` | The role may not use this route |
+| `capability_missing` | The role lacks the capability, `meta.capability` names it |
+| `role_unknown` | No role source declares the role, `meta.field` is `role` |
+| `role_beyond_reach` | The actor may not hand out that role or change that account |
+| `role_changed` | The account's role changed before the write landed |
 | `body_malformed` | The request body is not valid JSON |
 | `body_too_large` | The request body is over the cap |
 | `body_field_required` | A required field is missing, `meta.field` names it |

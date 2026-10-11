@@ -32,6 +32,13 @@ This creates an unconfirmed account with no password and returns the
 token. Put `tok.Token` in a link and mail it. The account cannot log
 in until the link is used.
 
+Give `InvitesConfig.Roles` a role registry and `Invite` refuses a role
+the registry does not know, or an empty one, with
+`authkit.ErrUnknownRole`. It does not check who may hand the role out,
+so ask the registry's `Outranks` before you call it, as the
+[admin routes](/authentication/user-administration/#checking-roles-against-a-registry)
+do.
+
 When they follow the link:
 
 ```go

@@ -16,6 +16,7 @@ and the ways to create the first account.
 admin := authkit.NewAdmin(authkit.AdminConfig{
 	Store:      store,
 	Privileged: gouncer.Roles{"admin"},
+	Roles:      registry,
 })
 
 mux.Handle("GET /api/users", auth.RequireSession(http.HandlerFunc(admin.List)))
@@ -25,13 +26,17 @@ mux.Handle("PUT /api/users/{id}/role", auth.RequireSession(http.HandlerFunc(admi
 ```
 
 `NewAdmin` takes an `AdminConfig`. `Store` is an `authkit.AdminStore`,
-which is `gouncer.Store` plus `ListUsers`, `SetUserDisabledUnderCover`
-and `SetUserRole`.
+which is `gouncer.Store` plus `ListUsers`, `SetUserDisabledUnderCover`,
+`SetUserRole`, and their checked twins `SetUserDisabledFrom` and
+`SetUserRoleFrom`.
 [`authkit/postgres`](/authentication/persistence/) implements it.
 `Privileged` names the roles allowed to administer accounts. Every
 admin route refuses any other role with the code `role_insufficient`.
 Leave `Privileged` empty and every signed-in account is admitted, which
-is how an application behaves before it adopts roles.
+is how an application behaves before it adopts roles. `Roles` is
+optional, a role registry that checks every role the routes write, as
+[Checking roles against a registry](#checking-roles-against-a-registry)
+explains.
 
 The handlers read the target id from `r.PathValue("id")`, so they work
 on the standard mux and on routers that populate path values.
@@ -52,8 +57,8 @@ Four behaviors worth knowing:
 
 ## Roles
 
-Every account holds a role, stored as plain text. authkit does not
-know what the names mean. Your application picks them, decides which
+Every account holds a role, stored as plain text. On its own, authkit
+does not know what the names mean. Your application picks them, decides which
 of them count as privileged, and decides what each one may do. A role
 the application does not recognise should get the least authority,
 never the most, so an account created outside the app cannot gain the
@@ -83,9 +88,36 @@ in English, and the code is the part a client should match on:
 | Code | Status | When |
 | --- | --- | --- |
 | `role_insufficient` | 403 | The actor holds no privileged role |
+| `role_unknown` | 422 | No role source declares the role, `meta.field` is `role` |
+| `role_beyond_reach` | 403 | The actor does not outrank the role, or the account's current role |
+| `role_changed` | 409 | The account's role changed before the write landed |
 | `self_disable_refused` | 422 | An account disabling itself |
 | `self_role_refused` | 422 | An account changing its own role |
 | `last_privileged_refused` | 422 | A change that would leave no enabled privileged account |
+
+## Checking roles against a registry
+
+A role registry such as goncierge knows which roles exist and what
+each may do. [Roles and capabilities](/authorization/overview/)
+explains it. Pass one as `AdminConfig.Roles` and the routes check
+every role they write:
+
+- A role the registry does not know gets a 422 with the code
+  `role_unknown`. So does an empty role, because `EnsureAdmin` and
+  `account:grant-role` give a role to accounts holding none.
+- An actor may hand out only a role its own role outranks, meaning it
+  carries every capability that role carries. It may also change or
+  disable only an account whose current role it outranks. Anything
+  else gets a 403 with the code `role_beyond_reach`.
+- An account whose role no source declares any more, such as one from
+  a removed plugin, can still be given a new role or disabled. To
+  enable it again, give it a declared role first.
+- The write lands only if the account still holds the role that was
+  checked. If another admin changed it in between, the write gets a
+  409 with the code `role_changed`. Reload the account and try again.
+
+Give your administrator role every capability your plugins add.
+Otherwise it cannot hand out their roles.
 
 ## The seams under the admin handlers
 
@@ -126,6 +158,11 @@ case errors.Is(err, gouncer.ErrLastPrivileged):
 
 `gouncer.ErrLastPrivileged` is the store refusing to remove the last
 cover. The HTTP handlers translate it to `last_privileged_refused`.
+
+With a role registry, `CreateAccount` and `SetAccountRole` also refuse
+an unknown or empty role with `authkit.ErrUnknownRole`. They take no
+acting role, so they never check reach. A caller acting for an account
+asks the registry's `Outranks` first.
 
 ## Sweeping expired sessions
 
