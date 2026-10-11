@@ -108,6 +108,9 @@ one you can recreate from scratch.
   is built on it.
 - Every read of a user, by email, by id or by session, carries the
   role the account holds.
+- `ListUsers` lists accounts by name without regard to the case of A
+  to Z, then by id, on a database of any collation. Other letters
+  follow the database's own order.
 - `DeleteExpiredSessions` returns how many rows it removed, and uses
   an index on the expiry column, so cleanup never scans the whole
   table.
