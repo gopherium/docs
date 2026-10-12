@@ -4,24 +4,34 @@ description: Seven ready-made commands that create, list, change and disable the
 ---
 
 [`gonsole/auth`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth)
-gives your program seven account commands over the accounts of the
-[`authkit/postgres` store](/authentication/persistence/), or of the
-`authkit/sqlite` store as [On SQLite](#on-sqlite) shows. With them you
-create the first admin of a fresh database, and change a role or
-disable an account from a shell.
-Add both modules, at versions that work together:
+gives your program seven account commands. With them you create the
+first admin of a fresh database, and change a role or disable an
+account from a shell.
+
+On PostgreSQL the commands run through
+[`gonsole/auth/postgres`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth/postgres).
+The accounts then live in the
+[`authkit/postgres` store](/authentication/persistence/). On SQLite
+the commands run through `gonsole/auth/sqlite`, as
+[On SQLite](#on-sqlite) shows. For PostgreSQL, add these three
+modules, at versions that work together:
 
 ```sh
 go get github.com/gopherium/framework/gonsole@v0.7.0
 go get github.com/gopherium/framework/gonsole/auth@v0.7.0
+go get github.com/gopherium/framework/gonsole/auth/postgres@v0.1.0
 ```
 
 The package is named `auth`, like the authkit value in the
 [Quickstart](/start/quickstart/). Import it as `accounts` to keep
-the two apart:
+the two apart. The package of `gonsole/auth/postgres` is named
+`postgres`, like `authkit/postgres`. Import it as `accountpg`:
 
 ```go
-import accounts "github.com/gopherium/framework/gonsole/auth"
+import (
+	accounts "github.com/gopherium/framework/gonsole/auth"
+	accountpg "github.com/gopherium/framework/gonsole/auth/postgres"
+)
 
 func roles(context.Context, gonsole.Call) (accounts.Roles, error) {
 	return accounts.Roles{
@@ -40,6 +50,7 @@ func program(getenv func(string) string) gonsole.Program {
 		Capability:    "manage_users",
 		RecordTimeout: 5 * time.Second,
 		RecordsLimit:  50,
+		Stores:        accountpg.Stores,
 	}
 	return gonsole.Program{
 		Name:     "myapp",
@@ -48,8 +59,8 @@ func program(getenv func(string) string) gonsole.Program {
 		Database: "DATABASE_URL",
 		Serve:    serve,
 		Migrations: []gonsole.Step{
-			accounts.Migration(),
-			accounts.RecordMigration(),
+			accountpg.Migration(),
+			accountpg.RecordMigration(),
 			{Name: "reports", Run: migrateReports},
 		},
 		Commands: append(
@@ -62,16 +73,30 @@ func program(getenv func(string) string) gonsole.Program {
 }
 ```
 
-`Migration` creates the `auth` schema, the tables the accounts live
-in. `RecordMigration` creates the `gonsole` schema, which holds the
-records of who changed what and its own list of applied migrations.
-Both go before your own
+`accountpg.Stores` opens a pool of database connections at the
+database address. `Authorize`, the command and `Record` each get a
+pool of their own, closed when they are done.
+
+`accountpg.Migration` creates the `auth` schema, the tables the
+accounts live in. `accountpg.RecordMigration` creates the `gonsole`
+schema, which holds the records of who changed what and its own list
+of applied migrations. Both go before your own
 [schema steps](/command-line/writing-commands/#schema-steps).
 
-`RecordMigration` runs on goose, a migration tool, and takes goose's
-lock first. So two `migrate` runs never apply it at once. Leave
-`Program.Lock` unset, since one that takes the same lock would block
-this step.
+A program that listed `accounts.Migration()` and
+`accounts.RecordMigration()` can list the `accountpg` steps in their
+place. The steps keep their names and their lists of applied
+migrations, so `migrate` applies nothing twice.
+
+`accountpg.RecordMigration` runs on goose, a migration tool, and takes
+goose's lock first. So two `migrate` runs never apply it at once.
+Leave `Program.Lock` unset, since one that takes the same lock would
+block this step.
+
+Keep pool keys such as `pool_max_conns` out of the database setting.
+Only a pgx pool reads them, and neither schema step opens one. pgx
+then sends each pool key to the server as a setting, and the server
+refuses a setting it does not know.
 
 `Roles` is required. Without it, every command but `account:list`
 and `account:records` panics. It is a function that returns two lists
@@ -229,19 +254,23 @@ sets the limit for one run. Call `cfg.Validate(call.Env)` from your
 [`Program.Validate`](/command-line/overview/#settings), so
 `myapp check` reads both settings.
 
+With `accountpg.Stores`, storing a record can take up to 15 seconds
+past the record timeout when the database stops answering. pgx, the
+PostgreSQL driver, waits that long for the connection to close.
+
 ## On SQLite
 
 [`gonsole/auth/sqlite`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth/sqlite)
 runs the same seven commands on an SQLite file. The accounts and the
 records then sit in the file that holds the rest of your data. Add it
-beside the two modules above:
+in place of `gonsole/auth/postgres`:
 
 ```sh
 go get github.com/gopherium/framework/gonsole/auth/sqlite@v0.1.0
 ```
 
 Its package is named `sqlite`, like `dbkit/sqlite`. Import it as
-`accountsqlite`, to go with `accounts`.
+`accountsqlite` in place of `accountpg`, to go with `accounts`.
 
 Your program first needs an opener, as
 [One database handle](/command-line/writing-commands/#one-database-handle)
@@ -271,11 +300,11 @@ Migrations: []gonsole.Step{
 },
 ```
 
-- `Stores` in `accounts.Config` is set to `accountsqlite.Stores`.
-  Every command, `Authorize` and `Record` then run on the one handle
-  the run opens.
+- `Stores` in `accounts.Config` is set to `accountsqlite.Stores` in
+  place of `accountpg.Stores`. Every command, `Authorize` and `Record`
+  then run on the one handle the run opens.
 - `accountsqlite.Migration` and `accountsqlite.RecordMigration` take
-  the place of `accounts.Migration()` and `accounts.RecordMigration()`.
+  the place of `accountpg.Migration()` and `accountpg.RecordMigration()`.
   Keep them first, before your own steps. Their `LockWait` and
   `LockPoll` come from your own settings, as on the
   [SQLite page](/database/sqlite/#migrations).

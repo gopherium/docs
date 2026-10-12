@@ -187,22 +187,24 @@ functions it sets on `Program`.
 
 A program whose accounts live in the
 [`authkit/postgres` store](/authentication/persistence/) takes both
-from `gonsole/auth`, imported as `accounts`:
+from `gonsole/auth`, imported as `accounts`. Its two schema steps come
+from `gonsole/auth/postgres`, imported as `accountpg`:
 
 ```go
 Migrations: []gonsole.Step{
-	accounts.Migration(),
-	accounts.RecordMigration(),
+	accountpg.Migration(),
+	accountpg.RecordMigration(),
 	{Name: "reports", Run: migrateReports},
 },
 Authorize: accounts.Authorize(cfg),
 Record:    accounts.Record(cfg),
 ```
 
-`cfg` is the `accounts.Config` of your account commands.
-`Authorize` lets an account act only when it is enabled and its role
-carries the capability in `Roles.Capabilities`. `Record` stores each
-change in a table that the `RecordMigration` step creates.
+`cfg` is the `accounts.Config` of your account commands, with
+`Stores` set to `accountpg.Stores`. `Authorize` lets an account act
+only when it is enabled and its role carries the capability in
+`Roles.Capabilities`. `Record` stores each change in a table that the
+`accountpg.RecordMigration` step creates.
 [Account commands](/command-line/account-commands/#an-acting-account)
 has the details.
 
