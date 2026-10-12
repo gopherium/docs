@@ -4,11 +4,12 @@ description: Seven ready-made commands that create, list, change and disable the
 ---
 
 [`gonsole/auth`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth)
-gives your program seven account commands over the accounts that the
-[`authkit/postgres` store](/authentication/persistence/) keeps. With
-them you create the first admin of a fresh database, and change a
-role or disable an account from a shell. Add both modules, at
-versions that work together:
+gives your program seven account commands over the accounts of the
+[`authkit/postgres` store](/authentication/persistence/), or of the
+`authkit/sqlite` store as [On SQLite](#on-sqlite) shows. With them you
+create the first admin of a fresh database, and change a role or
+disable an account from a shell.
+Add both modules, at versions that work together:
 
 ```sh
 go get github.com/gopherium/framework/gonsole@v0.7.0
@@ -227,3 +228,95 @@ stops the run before anything changes. `-limit` on `account:records`
 sets the limit for one run. Call `cfg.Validate(call.Env)` from your
 [`Program.Validate`](/command-line/overview/#settings), so
 `myapp check` reads both settings.
+
+## On SQLite
+
+[`gonsole/auth/sqlite`](https://pkg.go.dev/github.com/gopherium/framework/gonsole/auth/sqlite)
+runs the same seven commands on an SQLite file. The accounts and the
+records then sit in the file that holds the rest of your data. Add it
+beside the two modules above:
+
+```sh
+go get github.com/gopherium/framework/gonsole/auth/sqlite@v0.1.0
+```
+
+Its package is named `sqlite`, like `dbkit/sqlite`. Import it as
+`accountsqlite`, to go with `accounts`.
+
+Your program first needs an opener, as
+[One database handle](/command-line/writing-commands/#one-database-handle)
+shows. Then make three changes to the program above:
+
+```go
+import accountsqlite "github.com/gopherium/framework/gonsole/auth/sqlite"
+
+lock := accountsqlite.MigrateOptions{
+	LockWait: settings.MigrateLockWait,
+	LockPoll: settings.MigrateLockPoll,
+}
+cfg := accounts.Config{
+	Roles:         roles,
+	Capability:    "manage_users",
+	RecordTimeout: 5 * time.Second,
+	RecordsLimit:  50,
+	Stores:        accountsqlite.Stores,
+}
+```
+
+```go
+Migrations: []gonsole.Step{
+	accountsqlite.Migration(lock),
+	accountsqlite.RecordMigration(lock),
+	{Name: "reports", RunOn: migrateReports},
+},
+```
+
+- `Stores` in `accounts.Config` is set to `accountsqlite.Stores`.
+  Every command, `Authorize` and `Record` then run on the one handle
+  the run opens.
+- `accountsqlite.Migration` and `accountsqlite.RecordMigration` take
+  the place of `accounts.Migration()` and `accounts.RecordMigration()`.
+  Keep them first, before your own steps. Their `LockWait` and
+  `LockPoll` come from your own settings, as on the
+  [SQLite page](/database/sqlite/#migrations).
+- Your own steps set `RunOn` in place of `Run`. So `migrateReports`
+  gets the run's `*sql.DB` in place of the address, and no step opens
+  a second handle.
+
+SQLite has no schemas. The accounts go to the `auth_` tables of
+[`authkit/sqlite`](/authentication/persistence/#on-sqlite). The
+records go to `gonsole_records`, with their own list of applied
+migrations in `gonsole_goose_db_version`.
+
+Each step takes the migration lock file beside the database,
+`<file>.migrate.lock`, for its own run. Leave `Program.Lock` unset. A
+program lock on that lock file would make the accounts step wait until
+`LockWait` runs out. The run then fails before the records step
+starts.
+
+On a file that does not exist yet, `migrate` and
+`account:create-admin` fail unless your opener passes `Create` to
+`sqlite.Open`. See [What Open refuses](/database/sqlite/#what-open-refuses).
+
+For demo data, give `accounts.EnsureAccounts` the SQLite store over
+the run's handle:
+
+```go
+import authkitsqlite "github.com/gopherium/gouncer/authkit/sqlite"
+
+Seed: func(ctx context.Context, call gonsole.Call) error {
+	db, err := call.DB(ctx)
+	if err != nil {
+		return err
+	}
+	return accounts.EnsureAccounts(ctx, authkitsqlite.NewUserStore(db), demo, call.Stdout)
+},
+```
+
+Storing a record can wait up to the record timeout or the
+`BusyTimeout` your opener gives `sqlite.Open`, whichever is longer.
+SQLite does not stop waiting for a busy file when the record timeout
+runs out.
+
+Your build still links the PostgreSQL driver, because `gonsole/auth`
+carries the PostgreSQL store too.
