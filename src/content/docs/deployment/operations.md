@@ -74,7 +74,8 @@ logged in. A command of your own binary breaks that circle. With
 [`account:create-admin`](/command-line/account-commands/). It parses
 the account flags, runs every step in `Program.Migrations`, and reads
 the password as a single line from stdin. List
-`accounts.Migration()` there, so the auth schema exists.
+`accountpg.Migration()` from `gonsole/auth/postgres` there, so the
+auth schema exists.
 
 It needs no shell and no extra tooling, so it works even in a
 distroless image. A terminal shows the password as you type it, so
@@ -132,10 +133,11 @@ provider, err := goose.NewProvider(goose.DialectPostgres, db, migrations,
 
 With gonsole, list both as steps in `Program.Migrations`, the
 library's first. `serve` never runs them, so run `myapp migrate`
-before each release starts. It applies them in that order. Both
-library steps already turn the locker on: `authkitpg.Migrate` from
-`authkit/postgres` 0.11.2 on, and the records step of
-`gonsole/auth`, `accounts.RecordMigration()`.
+before each release starts. It applies them in that order. The two
+steps of `gonsole/auth/postgres` already turn the locker on.
+`accountpg.Migration()` runs `authkitpg.Migrate`, which has turned it
+on since `authkit/postgres` 0.11.2. `accountpg.RecordMigration()`
+turns it on too.
 
 Any other module that owns database tables follows the same rule with
 its own table. Plugins are the common case, and the
