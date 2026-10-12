@@ -193,10 +193,14 @@ if errors.Is(postgres.Classify(err), dbkit.ErrUnique) {
 | Server code | Class |
 | --- | --- |
 | 23505 | `ErrUnique` |
-| 23503 | `ErrForeignKey` |
+| 23503, 23001 | `ErrForeignKey` |
 | 23502 | `ErrNotNull` |
 | 23514 | `ErrCheck` |
 | 55P03, 40001, 40P01 | `ErrBusy` |
+
+PostgreSQL 18 reports 23001 when a foreign key with `ON DELETE
+RESTRICT` or `ON UPDATE RESTRICT` stops a change. Older versions
+report 23503 for it.
 
 55P03 is a lock that was not free, under `NOWAIT` or `lock_timeout`.
 40001 is a serialization failure and 40P01 a deadlock. Each one is a
@@ -285,18 +289,47 @@ and value address, and a host with a colon, such as an IPv6 literal.
 Give such a server a host name. `URL` builds the same escaped address
 from a `pgtestdb.Config`.
 
-pgtest has no default server and reads no environment variable, so
-`testServer` comes from your own settings. Read it from an environment
-variable in `TestMain`, and stop the run when that variable is empty,
-so a missing setting never sends your tests to some other server.
+pgtest has no default server and no setting of its own, so
+`testServer` comes from your own settings. Read it in `TestMain`, and
+stop the run when `pgtest.CheckAddress` refuses it, with a message that
+names your setting:
 
-`New` checks the address with `CheckAddress` too. It also refuses an
+```go
+var testServer string
+
+func TestMain(m *testing.M) {
+	testServer = os.Getenv("MYAPP_TEST_DATABASE_URL")
+	if err := pgtest.CheckAddress(testServer); err != nil {
+		fmt.Fprintln(os.Stderr, "MYAPP_TEST_DATABASE_URL:", err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
+```
+
+An empty address is refused too, so a missing setting never sends your
+tests to some other server.
+
+`pgtest.CheckAddress` returns the error `New` would refuse the address
+with, or nil. It connects to nothing, so a nil error does not mean the
+server is up. It runs `postgres.CheckAddress` first. It also refuses an
 address pgx cannot parse, and an address whose query sets `password`
 or `sslpassword`. Write the server password before the `@`, and set a
 client key password in `PGSSLPASSWORD`. It refuses a query that sets
 `user`, `host`, `port`, `dbname` or `database` as well, since pgtestdb
 copies the query onto every test database and those keys would send
 it elsewhere. Give them before the `?`.
+
+It refuses a pool key such as `pool_max_conns` too, in the query or in
+a service file, since pgtestdb would send it to the server as a
+setting. Set up the pool when you open the address `New` returns, as
+[Pool settings](#pool-settings) shows. A name with a dot, such as
+`pool_app.tenant`, is a server setting and passes.
+
+`pgtest.CheckAddress` reads the address with pgx, as `New` does. So it
+also reads the `PG*` variables and your passfile. When you name a
+service, in the address or in `PGSERVICE`, it reads your service file
+too.
 
 dbkit's own errors hold no part of the address. When the server cannot
 be reached, pgx's connect error, which `New` and `Migrate` pass on,
@@ -346,7 +379,9 @@ func TestSavesAnItem(t *testing.T) {
 
 Each test process sweeps each address at most once. Tests that start
 while that sweep runs wait for it, and the first call's age is the one
-it uses. An age of zero or less fails the test. A failed sweep, such as
+it uses. An age of zero or less fails the test. An address that
+`pgtest.CheckAddress` refuses fails it too, with the same error as
+`New`. Both checks run before any sweep. A failed sweep, such as
 one whose role lacks the rights above, is logged on the test that ran
 it, and every test still gets its fresh database. `go test -v` shows
 that line.
