@@ -583,7 +583,9 @@ then a green, an amber and a grey with a white letter. All six reach
 4.5 to 1 against their letter, the contrast a screen needs for small
 text. The avatar is hidden from screen readers, because the
 name next to it already says who it is. It never loads a picture, so
-no address leaves your application.
+no address leaves your application. The server builds the same
+avatar as an image address with gouncer's
+[`avatar` package](/authentication/avatars/).
 
 ## Lists that stay custom
 
