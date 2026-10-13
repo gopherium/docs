@@ -18,7 +18,7 @@ modules, at versions that work together:
 
 ```sh
 go get github.com/gopherium/framework/gonsole@v0.7.0
-go get github.com/gopherium/framework/gonsole/auth@v0.7.0
+go get github.com/gopherium/framework/gonsole/auth@v0.8.0
 go get github.com/gopherium/framework/gonsole/auth/postgres@v0.1.0
 ```
 
@@ -84,9 +84,9 @@ of applied migrations. Both go before your own
 [schema steps](/command-line/writing-commands/#schema-steps).
 
 A program that listed `accounts.Migration()` and
-`accounts.RecordMigration()` can list the `accountpg` steps in their
-place. The steps keep their names and their lists of applied
-migrations, so `migrate` applies nothing twice.
+`accounts.RecordMigration()` moves to these steps as
+[Upgrading from gonsole/auth 0.7.0](#upgrading-from-gonsoleauth-070)
+shows.
 
 `accountpg.RecordMigration` runs on goose, a migration tool, and takes
 goose's lock first. So two `migrate` runs never apply it at once.
@@ -97,6 +97,14 @@ Keep pool keys such as `pool_max_conns` out of the database setting.
 Only a pgx pool reads them, and neither schema step opens one. pgx
 then sends each pool key to the server as a setting, and the server
 refuses a setting it does not know.
+
+`Stores` is required. Without it, every account command fails, and
+so do `Authorize` and `Record`:
+
+```text
+$ myapp account:list
+myapp: gonsole/auth: Config.Stores is nil, set it to the Stores of gonsole/auth/postgres or gonsole/auth/sqlite
+```
 
 `Roles` is required. Without it, every command but `account:list`
 and `account:records` panics. It is a function that returns two lists
@@ -347,5 +355,29 @@ Storing a record can wait up to the record timeout or the
 SQLite does not stop waiting for a busy file when the record timeout
 runs out.
 
-Your build still links the PostgreSQL driver, because `gonsole/auth`
-carries the PostgreSQL store too.
+## Upgrading from gonsole/auth 0.7.0
+
+`gonsole/auth` 0.8.0 holds no PostgreSQL code. It removed
+`accounts.Migration`, `accounts.RecordMigration` and
+`accounts.PostgresRecords`. `Stores` became required. On PostgreSQL,
+make each change below that applies to your program:
+
+- Run `go get github.com/gopherium/framework/gonsole/auth/postgres@v0.1.0`.
+- Set `Stores: accountpg.Stores` in `accounts.Config`.
+- List `accountpg.Migration()` and `accountpg.RecordMigration()` in
+  place of `accounts.Migration()` and `accounts.RecordMigration()`.
+- Call `accountpg.NewRecordStore(pool)` in place of
+  `accounts.PostgresRecords(pool)`.
+
+The steps keep their names and their lists of applied migrations, so
+`migrate` applies nothing twice. Errors from the record store and the
+records step now include `postgres:`, as in
+`myapp: migrate records: postgres: apply the records schema: ...`.
+
+`gonsole/auth/postgres` v0.1.0 works with `gonsole/auth` 0.7.0 too.
+So you can make these changes first and move `gonsole/auth` to 0.8.0
+after.
+
+A program that already sets `Stores` and uses none of the removed
+names only moves `gonsole/auth` to 0.8.0. A program on SQLite is one
+of these. On 0.8.0 its build no longer links the PostgreSQL driver.
