@@ -110,11 +110,15 @@ one you can recreate from scratch.
   second time. The [grandfathering
   command](/authentication/user-administration/#giving-a-role-to-accounts-that-hold-none)
   is built on it.
-- Every read of a user, by email, by id or by session, carries the
-  role the account holds.
+- Every read of a user, by email, by id, by many ids or by session,
+  carries the role the account holds.
 - `ListUsers` lists accounts by name without regard to the case of A
   to Z, then by id, on a database of any collation. Other letters
   follow the database's own order.
+- `UsersByIDs` reads many accounts by id in one query, such as the
+  authors of every item on a page. Each account comes back once, in
+  no set order and without its password hash, disabled and
+  unconfirmed ones too. An id no account holds is skipped.
 - `DeleteExpiredSessions` returns how many rows it removed, and uses
   an index on the expiry column, so cleanup never scans the whole
   table.
