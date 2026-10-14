@@ -565,6 +565,11 @@ Pass `size` to draw it at another width in pixels, such as
 name. The letter keeps its share of the circle, 12px in 32px, so it
 is 6px at 16px.
 
+Pass `src` to show a picture in the same round box, such as the
+address gouncer's [`avatar` package](/authentication/avatars/) builds
+from the site's avatar setting. When the address is empty or the
+picture fails to load, the letter comes back.
+
 DataViews draws media in a square box with 4px corners and a thin
 dark ring. godmin rounds that box and drops the ring when it holds an
 avatar, in the table and in the list layout, because the WordPress
@@ -576,16 +581,15 @@ to a title with a description under it, the avatar is level with the
 pair, as in the WordPress subscriber list, instead of with the title
 alone.
 
-The same name always gets the same colour, whatever its case. The six
+The same name always gets the same colour, whatever its case and the
+browser's language. The six
 colours start with the blue, raspberry and purple of the WordPress
 subscriber avatars, each with the pale letter WordPress draws on it,
 then a green, an amber and a grey with a white letter. All six reach
 4.5 to 1 against their letter, the contrast a screen needs for small
 text. The avatar is hidden from screen readers, because the
-name next to it already says who it is. It never loads a picture, so
-no address leaves your application. The server builds the same
-avatar as an image address with gouncer's
-[`avatar` package](/authentication/avatars/).
+name next to it already says who it is. Without `src` it never loads
+a picture, so no address leaves your application.
 
 ## Lists that stay custom
 
