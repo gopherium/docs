@@ -19,7 +19,7 @@ modules, at versions that work together:
 ```sh
 go get github.com/gopherium/framework/gonsole@v0.7.0
 go get github.com/gopherium/framework/gonsole/auth@v0.8.0
-go get github.com/gopherium/framework/gonsole/auth/postgres@v0.1.0
+go get github.com/gopherium/framework/gonsole/auth/postgres@v0.2.0
 ```
 
 The package is named `auth`, like the authkit value in the
@@ -274,7 +274,7 @@ records then sit in the file that holds the rest of your data. Add it
 in place of `gonsole/auth/postgres`:
 
 ```sh
-go get github.com/gopherium/framework/gonsole/auth/sqlite@v0.1.0
+go get github.com/gopherium/framework/gonsole/auth/sqlite@v0.2.0
 ```
 
 Its package is named `sqlite`, like `dbkit/sqlite`. Import it as
@@ -374,10 +374,20 @@ The steps keep their names and their lists of applied migrations, so
 records step now include `postgres:`, as in
 `myapp: migrate records: postgres: apply the records schema: ...`.
 
-`gonsole/auth/postgres` v0.1.0 works with `gonsole/auth` 0.7.0 too.
-So you can make these changes first and move `gonsole/auth` to 0.8.0
-after.
+`gonsole/auth/postgres` v0.1.0 works with `gonsole/auth` 0.7.0 too,
+so your program keeps building while you make these changes. Then
+take v0.2.0, which moves `gonsole/auth` to 0.8.0 as well:
+
+```sh
+go get github.com/gopherium/framework/gonsole/auth/postgres@v0.2.0
+```
 
 A program that already sets `Stores` and uses none of the removed
-names only moves `gonsole/auth` to 0.8.0. A program on SQLite is one
-of these. On 0.8.0 its build no longer links the PostgreSQL driver.
+names only takes v0.2.0 of its engine module. A program on SQLite is
+one of these:
+
+```sh
+go get github.com/gopherium/framework/gonsole/auth/sqlite@v0.2.0
+```
+
+Its build then no longer links the PostgreSQL driver.
