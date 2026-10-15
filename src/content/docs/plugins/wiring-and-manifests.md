@@ -25,7 +25,7 @@ Every plugin directory holds a `plugin.json` describing itself:
 | `id` | Lowercase, matching the directory name, and not a [refused id](#ids-the-generator-refuses) |
 | `name` | The human readable name |
 | `backend` | The plugin's Go import path |
-| `frontend` | The plugin's UI module, if it has one |
+| `frontend` | The npm package name of the plugin's UI module, the same as the `name` in its own `package.json`, if it has one |
 | `graphql` | Set to `true` to [extend the GraphQL API](/plugins/graphql-plugins/) |
 
 `backend` and `frontend` are both optional on their own, but a
@@ -56,9 +56,10 @@ func main() {
 }
 ```
 
-`Run` reads every manifest and writes two files: one Go, one
-TypeScript. `License` sets the SPDX header on both, and `TSLicense`,
-when set, replaces it on the TypeScript file. Every field is on
+`Run` reads every manifest and writes one Go file and one TypeScript
+file, plus the optional registry and dependency list described below.
+`License` sets the SPDX header on the Go and TypeScript files, and
+`TSLicense`, when set, replaces it on the TypeScript file. Every field is on
 [pkg.go.dev](https://pkg.go.dev/github.com/gopherium/framework/pluginkit/wire).
 
 ### More than one plugin folder
@@ -88,6 +89,29 @@ The file holds one function, `All(deps sdk.Deps) ([]sdk.Plugin, error)`,
 returning every plugin in registration order. Like `registerPlugins`
 below, it still returns the ones that registered when some fail.
 Setting only one of the two fields is an error.
+
+### The frontend dependency list
+
+The generated TypeScript file imports each plugin's frontend, and
+pnpm only finds it when your app's `package.json` lists it. Set
+`PackageJSONPath` and `Run` keeps that list for you:
+
+```go
+PackageJSONPath: "frontend/package.json",
+```
+
+`Run` writes every plugin frontend under `dependencies` as
+`"workspace:*"`, sorted by name, and records the names it wrote under
+a top-level `pluginwire` key. On the next run it drops a recorded name
+that no manifest names any more. A dependency you add yourself is never
+touched, so leave the `pluginwire` key to the generator. Every other
+key keeps its place, and the file is written with tabs and a final
+newline. A missing or malformed `package.json` stops `Run` before it
+writes anything.
+
+`Run` does not touch the lock file. Run `pnpm install` after you add
+or remove a plugin, and check that your pnpm workspace includes each
+plugin's frontend folder.
 
 ### Ids the generator refuses
 
