@@ -93,6 +93,35 @@ fine, but a backslash in a PostgreSQL string makes the share report
 the statement as a write, as [the observer](/database/shares/#the-observer)
 explains.
 
+## Transactions on the handle
+
+`dbkit.InTx` runs a function in one write transaction on the handle.
+It commits when the function returns nil. It rolls back when the
+function returns an error, panics or stops early, as `t.Fatal` does
+in a test:
+
+```go
+err := dbkit.InTx(ctx, db, func(tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM core_drafts WHERE id = ?", id)
+	return err
+})
+```
+
+The context you pass bounds the whole transaction. A failed rollback
+comes back joined to the function's error. A failed commit comes back
+as the commit's error, and the database keeps nothing of it.
+
+A plain transaction sends your SQL to the driver as written, so use
+each engine's own placeholders, `?` on SQLite and `$1` on PostgreSQL.
+A plugin uses `Begin` on its [share](/database/shares/) instead, which
+rewrites `$1` for both engines and keeps the share's limits.
+
+On SQLite, `InTx` takes the write lock at once, since every write
+transaction starts with `BEGIN IMMEDIATE`. For a read, open a
+transaction with `db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})`,
+which never waits for the writer, as [SQLite](/database/sqlite/)
+explains.
+
 ## Names and types on SQLite
 
 Several owners keep their tables in the one SQLite file, so they
