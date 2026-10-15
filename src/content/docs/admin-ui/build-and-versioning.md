@@ -26,6 +26,9 @@ hook. Two copies of these fail with no error:
 - `@wordpress/theme` renders components unthemed.
 - `@wordpress/i18n` renders English. [One copy of the
   runtime](/translations/health/#one-copy-of-the-runtime) explains why.
+- `@wordpress/date` leaves the DataViews date filters in English, on
+  the wrong clock. The [list dates](/admin-ui/lists/#dates-in-a-list)
+  set up one copy, and the filters read the other.
 - `@gopherium/react-auth` keeps a
   [configured transport](/authentication/react-integration/#one-setting-for-the-whole-module)
   that half the app cannot see.
@@ -80,6 +83,10 @@ import { SUPPORTED_WPDS } from '@gopherium/godmin'
 windows only. The other design system peers, `@wordpress/icons`,
 `@wordpress/a11y` and `@wordpress/style-runtime`, have their windows
 in the peer ranges of godmin's `package.json`.
+
+`@wordpress/date` and `@wordpress/i18n` are required peers too,
+because the main entry imports them. Install both next to godmin.
+Their windows are in the same peer ranges.
 
 ## Upgrading from godmin 0.7.0
 

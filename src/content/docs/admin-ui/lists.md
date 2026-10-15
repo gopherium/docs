@@ -1,6 +1,6 @@
 ---
 title: Lists with DataViews
-description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, confirmations, renames, bulk messages, uploads, its Spanish chrome, and the table look for lists that stay custom.
+description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, confirmations, renames, bulk messages, uploads, its Spanish chrome, its dates, and the table look for lists that stay custom.
 ---
 
 DataViews is the WordPress list component. It draws the search box,
@@ -633,23 +633,121 @@ await startLocale(resolveLocale, [
 ])
 ```
 
-`listChromeCatalogFor` answers the catalogue for `es-ES`, and
-`undefined` for a language godmin has none for, so those readers keep
-the English chrome. The catalogue is its own small module, so a
-bundler loads it only for a reader who needs it.
+`listChromeCatalogFor` answers the catalogue for `es-ES`, and one
+with the [list date](#dates-in-a-list) words only for `fr-FR`. For
+any other language it answers `undefined`. French readers and those
+others keep the English chrome. Each catalogue is its own small
+module, so a bundler loads it only for a reader who needs it.
 
-It covers every word DataViews shows around a list: the search box,
-the view options, the filters, the column menus, the paging and the
-bulk bar. It also covers the two words `@wordpress/components` shows
-inside a list, the search reset button and the modal close button. It
-does not cover DataForm.
+The Spanish one covers every word DataViews shows around a list: the
+search box, the view options, the filters, the column menus, the
+paging and the bulk bar. It also covers the two words
+`@wordpress/components` shows inside a list, the search reset button
+and the modal close button. It does not cover DataForm.
 
 The translations are machine made. They stay marked fuzzy in the
-source, `src/list-chrome/es-ES.po` in the godmin repository, until a
-translator checks them. A test holds every word against the DataViews
-build, so a DataViews release that adds or renames one fails the
-godmin tests instead of showing English.
+sources, `src/list-chrome/es-ES.po` and `src/list-chrome/fr-FR.po`
+in the godmin repository, until a translator checks them. A test
+holds every word of the Spanish one against the DataViews build, so a
+DataViews release that adds or renames one fails the godmin tests
+instead of showing English.
 
 Keep one copy of `@wordpress/i18n` on the page. `godminDedupe` lists
 it for Vite. With two copies, the catalogue would land in one while
 DataViews reads the other.
+
+## Dates in a list
+
+WordPress lists write a date and time in a short form, such as
+Oct 13, 2026 5:04 pm. `listDate` writes that form, in a column's
+`render`:
+
+```tsx
+import { listDate } from '@gopherium/godmin'
+
+const created = {
+	id: 'created',
+	label: 'Created',
+	render: ({ item }) => listDate(item.createdAt),
+}
+```
+
+It takes a `Date` or the text a server stored. Empty text writes the
+current moment, so a cell with no date should not call it.
+
+Set the list dates up once the catalogues load, before the first list
+renders. `startLocale` answers the language it settled on:
+
+```ts
+import { startListDates } from '@gopherium/godmin'
+
+const locale = await startLocale(resolveLocale, [
+	{ domain: 'myapp', load: myappCatalog },
+	{ domain: LIST_CHROME_DOMAIN, load: listChromeCatalogFor },
+])
+startListDates(locale)
+```
+
+Until then `listDate` writes English on the UTC clock.
+
+`startListDates` takes the month and weekday names, am and pm, the
+two date-and-time formats and the first weekday from the loaded
+catalogue, as WordPress does. The same moment then reads:
+
+| Reader | Writes |
+| --- | --- |
+| English | Oct 13, 2026 5:04 pm |
+| Spanish, `es-ES` | 13 Oct 2026 17:04 |
+| French, `fr-FR` | 13 octobre 2026 17h04 |
+
+Any other language writes English. The messages are the WordPress
+core ones, such as `F j, Y g:i a` and `M j, Y g:i a` for the two
+formats, so your own catalogue for the `default` domain can answer
+them too.
+
+Dates show on the reader's clock, the browser's time zone. Pass a
+time zone to show another one, such as
+`startListDates(locale, 'Europe/Madrid')`. Text with no offset, such
+as `2026-10-13T17:04`, is read as a time on that clock.
+
+The same call sets the calendar language and the clock that the
+DataViews date fields and filters read. It does not reach their
+format or their first weekday. DataViews copies those into each field
+type when it first loads, before the call. So give a `date` or
+`datetime` field its own `format`, built after the call, in the code
+that builds the fields at render:
+
+```tsx
+import { listDate } from '@gopherium/godmin'
+import { getSettings } from '@wordpress/date'
+
+function listFields() {
+	return [
+		{
+			id: 'created',
+			label: 'Created',
+			type: 'datetime',
+			render: ({ item }) => listDate(item.createdAt),
+			format: {
+				datetime: getSettings().formats.datetime,
+				weekStartsOn: getSettings().l10n.startOfWeek,
+			},
+		},
+	]
+}
+```
+
+Call `listFields()` in the component that draws the list, never at
+the top of a module, which can run before the call.
+
+A `date` field reads `formats.date` instead, which the call leaves at
+the English `F j, Y`. Give it a `date` format of your own.
+
+Call `startListDates` again when the reader changes language, once
+the new catalogues load. Then build the fields again, so their
+`format` follows.
+
+godmin keeps each set of words under a private language name, such
+as `es-ES-x-g0`. So `getSettings().l10n.locale` from `@wordpress/date`
+no longer holds the bare language. Read it from what `startLocale`
+answered instead.

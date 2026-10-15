@@ -49,6 +49,11 @@ single fields work, and `timeStyle` throws. To show a time, call
 `formatTime`. `formatNumber` takes the `Intl.NumberFormatOptions`,
 such as `{ maximumFractionDigits: 2 }`.
 
+For a date in a list cell, use godmin's
+[`listDate`](/admin-ui/lists/#dates-in-a-list), which follows the
+WordPress list form and the reader's language rather than the format
+locale.
+
 ## Wait for the setting
 
 If your screens draw before the setting arrives, the first dates show
