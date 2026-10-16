@@ -82,7 +82,7 @@ image that should start the server sets `CMD ["serve"]`.
 
 ## Settings
 
-`call.Env.Value("ADDR")` reads `MYAPP_ADDR`, with spaces trimmed
+`call.Env.Value("REGION")` reads `MYAPP_REGION`, with spaces trimmed
 from both ends. `Duration`, `Count` and `Counts` read a setting as a
 length of time, a number, or a list of numbers. Each takes a
 fallback, the value to use when the setting is empty. Each refuses a
@@ -131,7 +131,7 @@ also uses `golang.org/x/text`, built only into a program that imports
 it. Add gonsole with:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.7.0
+go get github.com/gopherium/framework/gonsole@v0.8.0
 ```
 
 Read on with [Writing commands](/command-line/writing-commands/),

@@ -84,5 +84,7 @@ if err := cmd.Wait(); err != nil {
 `FreeAddr` answers an address on your own machine that nothing
 listens on, and `serve` reads it from `MYAPP_ADDR`. `WaitForListening`
 blocks until the server logs `listening`, so the logger `serve` hands
-[`gonsole.Serve`](/command-line/serving/) must write to `call.Stderr`.
-From there the test can send requests to `addr`.
+[`gonsole.ServeListening`](/command-line/serving/) must write to
+`call.Stderr`. From there the test can send requests to `addr`. On a
+socket, the `listening` line logs the socket's path in place of a TCP
+address.
