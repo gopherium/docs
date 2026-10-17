@@ -64,6 +64,12 @@ column. [Lists with DataViews](/admin-ui/lists/) shows it in full.
 </Page>
 ```
 
+`listLabel` names the list region, so a screen reader announces it,
+and `listRef` reaches it. With either one, code can focus the list,
+which stays out of the Tab order.
+[Running an action over the picked rows](/admin-ui/lists/#running-an-action-over-the-picked-rows)
+uses both to move the focus back to the list.
+
 A screen that fills the canvas edge to edge builds its own layout
 and uses `PageTitle` directly, so the page still gets exactly one
 `h1`:

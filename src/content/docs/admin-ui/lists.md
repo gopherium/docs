@@ -1,6 +1,6 @@
 ---
 title: Lists with DataViews
-description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, confirmations, renames, bulk messages, uploads, its Spanish chrome, its dates, and the table look for lists that stay custom.
+description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, runs over the picked rows, confirmations, confirms outside a list, renames, bulk messages, uploads, its Spanish chrome, its dates, and the table look for lists that stay custom.
 ---
 
 DataViews is the WordPress list component. It draws the search box,
@@ -136,6 +136,64 @@ screen is on.
 Leave `perPage` out while you do not know it yet, for example while
 your settings load. The list then shows every row.
 
+## Keeping the view to what the list offers
+
+An address can hold a sort or a filter the list never offers, from
+an old link or one typed by hand. DataViews would show it, and your
+server would get a request it cannot answer. `offeredView` keeps only
+what the fields offer:
+
+```tsx
+import { offeredView } from '@gopherium/godmin'
+
+const view = offeredView(list.view, fields, {
+	opening: { field: 'date', direction: 'desc' },
+	checks: { author: namesAccounts },
+})
+```
+
+Hand `view` to DataViews and to your request in place of `list.view`.
+
+A sort stays when a field with that id sorts. Any other sort, or
+none, falls back to `opening`, the order the list opens in. As in
+DataViews, a field sorts unless it says `enableSorting: false`, and a
+field of type `media` or `password` sorts only when it says
+`enableSorting: true`.
+
+A filter stays when DataViews offers it. `offeredView` reads the
+field as DataViews 20 does:
+
+- The field does not say `filterBy: false`.
+- The operator is one the field names in `filterBy.operators` and its
+  type takes, or one of its type's defaults when it names none. A
+  `text` field with no `filterBy` offers `isAny` and `isNone`, and a
+  field with no type offers `is` and `isNot`.
+- The field can draw the filter: it has `elements` or `getElements`,
+  its type draws a control, or its own `Edit` gives one. A field of
+  type `media` or `password` offers no filter, and neither does a
+  field with no type, no elements and no `Edit`.
+
+A filter still waiting for its value stays too. Otherwise its value
+has to fit the field:
+
+- For a field with `elements` or `getElements`, the value has the
+  shape DataViews writes. When any operator of the field picks one
+  value, such as `is`, every filter on it holds one value, `isAny`
+  included. Otherwise it holds a list. A value of the other shape
+  goes away.
+- For a field with `elements` and no `getElements`, each value must
+  be one of them. An empty `elements` list counts as none.
+- For any other field, `checks` can name a function that takes or
+  refuses the value, such as one that wants account ids. A field with
+  `getElements` is one of them, since DataViews shows the values it
+  loads in place of `elements`.
+- Such a field with no check takes any value. Name a check for any
+  value your server has to read, such as a date.
+
+Everything else in the view, such as the search, the page and the
+columns, comes back as it was. `filters` always comes back as a list,
+empty when nothing stayed.
+
 ## The list fills the page
 
 A list page fills the canvas from the title down to the bottom edge.
@@ -212,6 +270,22 @@ It draws the design system empty state, centred: the icon, the title
 as a heading and the hint under it. `hint` is optional. Leave it out
 when a search narrowed the list, as in `No users found.`
 
+`viewNarrows(view)` tells you whether a search, or a filter holding a
+value, narrows the list. Use it to pick between the two messages:
+
+```tsx
+import { ListEmpty, viewNarrows } from '@gopherium/godmin'
+
+const empty = viewNarrows(view) ? (
+	<ListEmpty icon={people} title="No users found." />
+) : (
+	<ListEmpty icon={people} title="No users yet." hint="Add one with New user." />
+)
+```
+
+A filter with an empty pick, or one still waiting for its value,
+narrows nothing.
+
 ## Paging on the server
 
 `filterSortAndPaginate` needs every row in the browser. A long list
@@ -269,6 +343,30 @@ first one arrives.
 for code outside a component. `last` is the size the server last sent
 together with the size it was asked for, or `undefined` before the
 first page.
+
+### Page sizes from your settings
+
+When your settings name the page sizes a reader may pick, an address
+can still hold a size they do not offer. `offeredSize` keeps a size
+the settings offer and falls back to the opening size for any other.
+`sizedView` leaves the size out of the request while the settings are
+on their way, so the server serves its own size:
+
+```tsx
+import { offeredSize, sizedView, useServerPaging } from '@gopherium/godmin'
+
+const sizes = settings.data?.pageSizes
+const view = { ...list.view, perPage: offeredSize(list.view.perPage, sizes, settings.data?.pageSize) }
+const paging = useServerPaging(sizedView(view, sizes), 100)
+const { page, asked } = useOrderPage(paging.window, { pause: settings.isPending })
+```
+
+While the sizes are unknown, `offeredSize` keeps the size the view
+asks for. Hold the request back while the settings load, with your
+query library's own flag, such as `pause` in urql or `enabled` in
+TanStack Query. If the settings fail to load, the sizes stay unknown,
+so the request goes without a size and the server serves its own.
+godmin never picks a query library for you.
 
 ## Bulk actions
 
@@ -339,11 +437,130 @@ when the reader picked exactly one, so the message can name it.
 its error, so it can count them or join their reasons. A message
 nothing calls for is `undefined`.
 
+## Running an action over the picked rows
+
+Every list action that changes rows does the same things around the
+calls: one failure notice above the list, the list reloaded, one
+toast, and the focus moved back to the list once a row moved.
+`useListRun` and `useBulkRun` hold those things for you:
+
+```tsx
+import { ErrorNotice, Page, RunConfirm, useBulkRun, useListRun } from '@gopherium/godmin'
+
+function OrdersScreen() {
+	const client = useQueryClient()
+	const list = useListView<View>(defaults)
+	const { failure, run, region } = useListRun('orders', list.onChangeSelection)
+	const refresh = useCallback(() => client.invalidateQueries({ queryKey: ['orders'] }), [client])
+	const bulk = useBulkRun<Order>(run, refresh)
+	const actions = useMemo<Action<Order>[]>(
+		() => [
+			{
+				id: 'delete',
+				label: 'Delete…',
+				supportsBulk: true,
+				hideModalHeader: true,
+				modalFocusOnMount: 'firstContentElement',
+				RenderModal: (props) => (
+					<RunConfirm {...props} confirmLabel="Delete" cancelLabel="Cancel" run={(orders) => bulk(orders, (order) => deleteOrder(order.id), words)}>
+						Delete these orders for good?
+					</RunConfirm>
+				),
+			},
+		],
+		[bulk],
+	)
+	return (
+		<Page title="Orders" list listLabel="Orders" listRef={region}>
+			{failure === undefined ? null : <ErrorNotice>{failure}</ErrorNotice>}
+			<DataViews {...props} actions={actions} />
+		</Page>
+	)
+}
+```
+
+Build the actions once with `useMemo`, as the example does. A run
+renders the screen again, and DataViews draws the confirm of a bulk
+action from the actions you pass. A new `RenderModal` would start the
+confirm over in the middle of the run: Cancel would work again, and
+the confirm button could start a second run. When your words or your
+calls change with the screen, list them in the dependencies too.
+
+`useListRun` holds the failure the last run left above the list. A
+new run clears it as it starts. When two runs overlap, only the
+latest one shows how it went. Once a run moved a row, the list region
+takes the focus, so a keyboard reader is not left on a button that
+went away with its row.
+
+Its first argument names the list on show. Put the list and its tab
+in it, such as `'orders trash'`. When that name changes, the list
+forgets its failure, clears the ticked rows and ignores any run
+started on the list before. The second argument replaces the ticked
+rows. Pass the setter that holds them, such as
+`list.onChangeSelection`, or a setter from a parent component. The
+rows clear in the same frame the new list appears.
+
+`useBulkRun` makes one call per row with `runEach`, waits for
+`refresh`, shows one toast in your [bulk words](#bulk-messages) and
+then settles the run with the notice. Wrap `refresh` in `useCallback`,
+or the handler changes on every render. `refresh` gets the rows the
+run acted on, so it can also forget each row's own cached copy. If
+`refresh` rejects, the run still shows its toast and its notice and
+settles, then rejects with that error.
+
+`RunConfirm` is the body of the confirm modal. It runs the action
+when the reader confirms, shows the confirm button busy and keeps
+Cancel inert while the run goes, and closes once the run settles. A
+failure shows above the list, not inside the modal. It also closes
+when the run rejects, and the error still reaches your app.
+
+`listLabel` and `listRef` make the list a region with a name, which
+a screen reader announces, and give the focus its target. The region
+stays out of the Tab order. Pass both. A list with a ref and no label
+still takes the focus, but a screen reader has no name to announce.
+
+A button outside the list, such as one in the page header, can share
+the same notice. Call `run.onStart()` as it starts, and the function
+it answers once it ends, with the failure or `undefined` and whether
+a row moved.
+
 ## Confirming an action
 
 An action that cannot be undone asks first. DataViews opens a modal
-for an action that has a `RenderModal`, and `ConfirmBody` is the body
-of that modal:
+for an action that has a `RenderModal`, and `RunConfirm` is the body
+of that modal for a
+[run over the picked rows](#running-an-action-over-the-picked-rows):
+
+```tsx
+const trash = useMemo<Action<Post>>(
+	() => ({
+		id: 'move-to-trash',
+		label: 'Move to trash',
+		supportsBulk: true,
+		hideModalHeader: true,
+		modalFocusOnMount: 'firstContentElement',
+		RenderModal: (props) => (
+			<RunConfirm {...props} confirmLabel="Move to trash" cancelLabel="Cancel" run={(posts) => bulk(posts, (post) => trashPost(post.id), words)}>
+				Move the picked posts to the trash?
+			</RunConfirm>
+		),
+	}),
+	[bulk],
+)
+```
+
+A confirm that removes something, such as Move to trash or Delete
+permanently, has no header, as in WordPress. Give the action
+`hideModalHeader: true`, and the question is the only text. A plain
+confirm, such as making an item the default, keeps its title through
+`modalHeader`. Leave `modalSize` out, so the modal takes the DataViews
+width, 560px, as WordPress list confirms do.
+`modalFocusOnMount: 'firstContentElement'` puts the focus on Cancel.
+Cancel is borderless text in your accent colour, left of the confirm
+button.
+
+For a run you write yourself, `ConfirmBody` is the same body without
+the run:
 
 ```tsx
 import { ConfirmBody } from '@gopherium/godmin'
@@ -376,17 +593,76 @@ function TrashModal({ items, closeModal }: RenderModalProps<Post>) {
 }
 ```
 
-It draws the question, then a minimal Cancel and the solid confirm
-button at the end. While `busy`, the confirm button shows a spinner
-and ignores a second press. `failure` shows an error notice inside
-the modal, above the buttons. Give the action a `modalHeader` and
-`modalSize: 'small'` for the small modal with a title.
+It draws the question, then Cancel as accent text and the solid
+confirm button at the end. While `busy`, the confirm button shows a
+spinner and ignores a second press, and Cancel closes nothing.
+`failure` shows an error notice inside the modal, above the buttons.
+
+## A confirm outside a list
+
+Some confirms open from a button outside any list, such as Move to
+trash in an editor or Empty Trash above a list. `ConfirmDialog` asks
+those, as WordPress dialogs do:
+
+```tsx
+import { ConfirmDialog } from '@gopherium/godmin/dialogs'
+
+function TrashButton({ post }: { post: Post }) {
+	const [asking, setAsking] = useState(false)
+	const trash = async () => {
+		try {
+			await trashPost(post.id)
+		} catch {
+			return 'The post could not be moved to the trash.'
+		}
+		return undefined
+	}
+	return (
+		<>
+			<Button variant="outline" onClick={() => setAsking(true)}>Move to trash</Button>
+			{asking ? (
+				<ConfirmDialog confirmLabel="Move to trash" cancelLabel="Cancel" onConfirm={trash} onClose={() => setAsking(false)}>
+					Move "Hello" to the trash?
+				</ConfirmDialog>
+			) : null}
+		</>
+	)
+}
+```
+
+It draws the WordPress modal: a card 560px wide, and a sheet along
+the bottom of the screen below 600px. Leave `title` out for a confirm
+that removes something, so the question is the only text. Give a
+plain confirm a `title`, and it gets a header with a close button.
+Cancel has the focus when the dialog opens.
+
+`onConfirm` resolves with the failure to show, or with `undefined`
+once it is done. A failure shows inside the dialog, above the
+buttons, and the dialog stays open for another try. Once it is done,
+the dialog calls `onClose`, which takes it away. While the action
+runs, the confirm button shows a spinner and nothing closes the
+dialog: not Cancel, not Escape, not a click outside it. When the
+dialog goes away, the focus goes back to the button that opened it,
+unless your action moved it, as a finished run over a list does.
+
+If `onConfirm` throws, the dialog stops waiting, and the reader can
+close it again. The error still reaches your app, so catch the
+failures you expect, as the example does.
+
+Render the dialog only while you ask, as the example does. Each new
+ask then starts fresh.
+
+`ConfirmDialog` comes from its own entry, `@gopherium/godmin/dialogs`,
+because it needs `@wordpress/components`, a large package the main
+entry never loads. Install `@wordpress/components` and load its
+stylesheet once, `@wordpress/components/build-style/style.css`, as
+DataViews already asks.
 
 ## Renaming an item
 
 A rename asks for one new name. `RenameBody` is the body of that
-modal: a field that starts with the current name, a minimal Cancel and
-the submit button:
+modal: a field that starts with the current name, an accent text
+Cancel and the submit button:
 
 ```tsx
 import { RenameBody, useToaster } from '@gopherium/godmin'
@@ -426,11 +702,13 @@ const renameAction: Action<Post> = {
 	id: 'rename',
 	label: 'Rename',
 	modalHeader: 'Rename',
-	modalSize: 'small',
 	modalFocusOnMount: 'firstContentElement',
 	RenderModal: RenameModal,
 }
 ```
+
+Leave `modalSize` out, so the rename takes the DataViews width, 560px,
+as the WordPress rename does.
 
 The submit button stays disabled while the field is blank or still
 holds `name`, so nobody writes the same name twice. Enter in the field
@@ -467,6 +745,43 @@ The input is emptied after each choice, so the same file can be
 chosen again. `icon` is drawn before the label. `inputLabel` names
 the hidden input, so a test can find it with `getByLabelText`. While
 `busy`, the button shows a spinner and ignores a press.
+
+It is compact and solid unless you say otherwise, as a page header
+button is. `variant`, `tone` and `size` take the design system
+button's values. In a dialog header, draw it as WordPress draws the
+upload button of its media dialog, a default size button with no
+fill:
+
+```tsx
+<FileButton variant="minimal" tone="neutral" size="default" onChoose={uploadAll}>
+	Upload files
+</FileButton>
+```
+
+## Buttons in the list header
+
+A list page puts its actions beside the title, in `actions`. As in
+WordPress lists, the main action is one solid compact button, and
+every other one is an outline compact button:
+
+```tsx
+<Page
+	title="Media"
+	list
+	actions={
+		<>
+			<Button variant="outline" size="compact" onClick={exportAll}>
+				Export
+			</Button>
+			<FileButton accept="image/*" multiple onChoose={uploadAll}>
+				Upload media
+			</FileButton>
+		</>
+	}
+>
+	<DataViews {...props} />
+</Page>
+```
 
 ## Naming an item in a toast
 
@@ -663,7 +978,7 @@ Oct 13, 2026 5:04 pm. `listDate` writes that form, in a column's
 `render`:
 
 ```tsx
-import { listDate } from '@gopherium/godmin'
+import { listDate } from '@gopherium/godmin/dates'
 
 const created = {
 	id: 'created',
@@ -675,11 +990,18 @@ const created = {
 It takes a `Date` or the text a server stored. Empty text writes the
 current moment, so a cell with no date should not call it.
 
+The dates live in their own entry, `@gopherium/godmin/dates`, because
+they bring `@wordpress/date`, moment and its time zone data, close to
+800 KB. Install `@wordpress/date` and `@wordpress/i18n` to use it. The
+main entry never loads them. If your first paint has a size limit,
+import the dates entry only from code that loads on demand with your
+lists, never from the code that runs before first paint.
+
 Set the list dates up once the catalogues load, before the first list
 renders. `startLocale` answers the language it settled on:
 
 ```ts
-import { startListDates } from '@gopherium/godmin'
+import { startListDates } from '@gopherium/godmin/dates'
 
 const locale = await startLocale(resolveLocale, [
 	{ domain: 'myapp', load: myappCatalog },
@@ -718,7 +1040,7 @@ type when it first loads, before the call. So give a `date` or
 that builds the fields at render:
 
 ```tsx
-import { listDate } from '@gopherium/godmin'
+import { listDate } from '@gopherium/godmin/dates'
 import { getSettings } from '@wordpress/date'
 
 function listFields() {

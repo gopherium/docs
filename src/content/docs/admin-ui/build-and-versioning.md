@@ -84,9 +84,31 @@ windows only. The other design system peers, `@wordpress/icons`,
 `@wordpress/a11y` and `@wordpress/style-runtime`, have their windows
 in the peer ranges of godmin's `package.json`.
 
-`@wordpress/date` and `@wordpress/i18n` are required peers too,
-because the main entry imports them. Install both next to godmin.
-Their windows are in the same peer ranges.
+`@wordpress/date` and `@wordpress/i18n` are optional peers, needed
+only by `@gopherium/godmin/dates`. `@wordpress/components` is an
+optional peer too, needed only by `@gopherium/godmin/dialogs`, in the
+window `>=42.0.0 <43.0.0`. Install each one next to godmin when you
+use its entry. Load the components stylesheet once in your
+application, `@wordpress/components/build-style/style.css`, as
+DataViews already asks. godmin never imports it. Their windows are in
+the same peer ranges.
+
+`@wordpress/dataviews` is an optional peer as well, in the window
+`>=20.0.0 <21.0.0`. No godmin entry imports it, but `offeredView`
+follows the filter rules of that DataViews release. A list built on
+another release gets a peer warning when it installs godmin.
+
+## Upgrading from godmin 0.19.0
+
+`startListDates` and `listDate` left the main entry. Import them from
+`@gopherium/godmin/dates`:
+
+```ts
+import { listDate, startListDates } from '@gopherium/godmin/dates'
+```
+
+Keep `@wordpress/date` and `@wordpress/i18n` installed next to godmin
+while you use them.
 
 ## Upgrading from godmin 0.7.0
 

@@ -89,6 +89,29 @@ Note that it is one global yes or no, not a width. Every query
 reports the same answer, so a component that distinguishes two
 breakpoints in a single render cannot be tested this way.
 
+## Giving elements a layout box
+
+jsdom lays nothing out, so no element has a size or a place on the
+screen. The WordPress modal looks for the first element it can focus
+among those on screen, finds none, and leaves the focus where it was.
+A test that checks the dialog focused Cancel then fails, though a
+browser focuses it. `stubLayout` gives every element one small box,
+as a browser does for an element on screen:
+
+```ts
+import { stubLayout } from '@gopherium/godmin/testing'
+
+test('focuses Cancel when the dialog opens', async () => {
+	stubLayout()
+	await user.click(screen.getByRole('button', { name: 'Move to trash' }))
+	await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' })))
+})
+```
+
+The box lasts until the test ends. `installTestEnvironment` takes it
+away after each test, so the next one starts with no layout again.
+Call it only in the tests that check where the focus goes.
+
 ## Checking a design system look
 
 The design system class names change between releases, so a test
