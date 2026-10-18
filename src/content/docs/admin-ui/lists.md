@@ -621,7 +621,7 @@ function TrashButton({ post }: { post: Post }) {
 		<>
 			<Button variant="outline" onClick={() => setAsking(true)}>Move to trash</Button>
 			{asking ? (
-				<ConfirmDialog confirmLabel="Move to trash" cancelLabel="Cancel" onConfirm={trash} onClose={() => setAsking(false)}>
+				<ConfirmDialog size="small" confirmLabel="Move to trash" cancelLabel="Cancel" onConfirm={trash} onClose={() => setAsking(false)}>
 					Move "Hello" to the trash?
 				</ConfirmDialog>
 			) : null}
@@ -630,11 +630,18 @@ function TrashButton({ post }: { post: Post }) {
 }
 ```
 
-It draws the WordPress modal: a card 560px wide, and a sheet along
-the bottom of the screen below 600px. Leave `title` out for a confirm
-that removes something, so the question is the only text. Give a
-plain confirm a `title`, and it gets a header with a close button.
-Cancel has the focus when the dialog opens.
+It draws the WordPress modal: a card from 600px up, and a sheet
+along the bottom of the screen below 600px, the width
+`SHEET_BREAKPOINT` names. `size` picks the card width. `small` draws
+it 400px wide, as WordPress does for the Move to trash button in its
+editor sidebar, so the example asks for it. `medium`, the default,
+is the 560px card WordPress opens for the Trash action of a list or
+of an actions menu. Both sizes are the same sheet on a phone.
+
+Leave `title` out for a confirm that removes something, so the
+question is the only text. Give a plain confirm a `title`, and it
+gets a header with a close button. Cancel has the focus when the
+dialog opens.
 
 `onConfirm` resolves with the failure to show, or with `undefined`
 once it is done. A failure shows inside the dialog, above the

@@ -69,20 +69,29 @@ Two `Frame.Rail` props exist for that top bar:
   your application speaks another language.
 
 The widths are exported, so your own rules can change at the same
-points:
+points as the frame and as WordPress:
 
-| Export | Value |
-| --- | --- |
-| `RAIL_BREAKPOINT` | `1024` |
-| `EDGE_BREAKPOINT` | `782` |
-| `DENSE_BREAKPOINT` | `640` |
-| `SMALL_VIEWPORT` | `(max-width: 1023px)` |
+| Export | Value | What changes below it |
+| --- | --- | --- |
+| `RAIL_BREAKPOINT` | `1024` | The rail becomes the top bar and the drawer |
+| `EDGE_BREAKPOINT` | `782` | The canvas meets the screen edges |
+| `DENSE_BREAKPOINT` | `640` | The canvas padding narrows to 16px |
+| `SHEET_BREAKPOINT` | `600` | Dialogs rise as sheets along the bottom of the screen and toasts widen to the screen, less a 16px gap on each side, as in WordPress |
+| `TITLE_BREAKPOINT` | `404` | An editor header has no room for its document title, which the WordPress editor drops there |
+| `SMALL_VIEWPORT` | `(max-width: 1023px)` | The query the frame folds its rail at |
 
-`useMediaQuery` answers any media query and re-renders your
+The frame itself changes nothing at 600 or 404. The first is where
+the WordPress dialogs and godmin's toasts change, and the second is
+for an editor header of your own.
+
+Each value is the first width that counts as wide, so a rule for
+the screens below it asks for one pixel less, as `SMALL_VIEWPORT`
+does. `useMediaQuery` answers any media query and re-renders your
 component when the answer changes:
 
 ```tsx
 const small = useMediaQuery(SMALL_VIEWPORT)
+const sheet = useMediaQuery(`(max-width: ${SHEET_BREAKPOINT - 1}px)`)
 ```
 
 ## The frame does not know your router

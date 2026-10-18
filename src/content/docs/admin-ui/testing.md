@@ -85,9 +85,52 @@ re-render. That is how a test renders
 [the narrow shell](/admin-ui/framing-an-application/). The setting
 resets itself before the next test.
 
-Note that it is one global yes or no, not a width. Every query
-reports the same answer, so a component that distinguishes two
-breakpoints in a single render cannot be tested this way.
+## Simulating a width
+
+`{ matches: true }` gives every query the same answer, so a test
+cannot sit between two breakpoints with it. Give `setViewport` a
+width instead, and each width query is answered by that number:
+
+```ts
+import { SHEET_BREAKPOINT, TITLE_BREAKPOINT } from '@gopherium/godmin'
+import { setViewport } from '@gopherium/godmin/testing'
+
+setViewport({ width: 500 })
+
+window.matchMedia(`(max-width: ${SHEET_BREAKPOINT - 1}px)`).matches // true
+window.matchMedia(`(max-width: ${TITLE_BREAKPOINT - 1}px)`).matches // false
+```
+
+At 500 the test sits between 404 and 599, and at 700 it sits
+between 600 and 781. Listeners are told and components re-render,
+as with `{ matches: true }`.
+
+The width answers `min-width` and `max-width` in pixels, the bound
+itself included, as a browser does. A query may join them with
+`and`, and a list of queries parted by commas matches when any of
+them does. The test stands in for a screen, so the media types
+`screen` and `all` hold, with or without `only`. That way the
+queries the WordPress packages ask, such as
+`screen and (max-width: 782px)`, get the answer a browser gives.
+Anything else, such as `print`, `not`, a width in `em` or
+`prefers-reduced-motion`, reports no match while a width is set. The
+width resets before the next test, like the yes or no.
+
+At exactly 782 the WordPress packages call the screen narrow, since
+they ask `(max-width: 782px)`, while godmin's breakpoints call it
+wide. A browser shows the same split, so a test at 782 sees it too.
+
+A helper of your own can name what it hands on with the
+`TestViewport` type:
+
+```ts
+import { setViewport } from '@gopherium/godmin/testing'
+import type { TestViewport } from '@gopherium/godmin/testing'
+
+const PHONE: TestViewport = { width: 390 }
+
+setViewport(PHONE)
+```
 
 ## Giving elements a layout box
 
