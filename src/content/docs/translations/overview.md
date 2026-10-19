@@ -53,6 +53,9 @@ import { __ } from '@wordpress/i18n'
 __('Save', 'myapp')
 ```
 
+A template lists only the messages of its own domain, see
+[Writing the template](/translations/building/#writing-the-template).
+
 ## One copy of the runtime
 
 `@wordpress/i18n` keeps loaded catalogues in module state. If your

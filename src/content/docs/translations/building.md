@@ -31,7 +31,7 @@ writeFileSync('languages/myapp.pot', pot({
 }))
 ```
 
-- `domain` is the text domain the template carries.
+- `domain` is the text domain the template carries. Only calls naming it are read.
 - `root` is what the globs resolve against.
 - `sources` are the globs holding your messages.
 - `ignored` optionally names paths inside those globs to skip.
@@ -41,6 +41,16 @@ It finds four call shapes: `__` for a plain message, `_x` when a word
 needs a context to tell two senses apart, `_n` for a plural, and
 `_nx` for a plural with a context. It finds them written plainly or
 through an `i18n.` prefix.
+
+A call belongs to the domain it names. A call naming no domain
+belongs to `default`, the domain the WordPress packages read, so
+`__('Move up')` stays out of a `myapp` template. When the domain is
+not written as a string, such as a constant, the call is kept,
+because the template cannot tell which domain it names.
+
+If your app loads its catalogue under the default domain and writes
+its calls with no domain, build its template with
+`domain: 'default'`.
 
 Run it in a script your build calls, and commit the template. It is
 the list every translator works from.
