@@ -103,7 +103,11 @@ one you can recreate from scratch.
 - `SetUserRoleFrom` and `SetUserDisabledFrom` add one condition: the
   account must still hold the role the caller checked. If it moved,
   nothing is written and the answer is `authkit.ErrRoleChanged`. The
-  admin handlers use them when they check roles against a registry.
+  admin handlers use them, through `SetAccountRoleFrom` and
+  `SetAccountDisabledFrom`, when they check roles against a registry.
+  `account:role`, `account:disable` and `account:enable` of the
+  [account commands](/command-line/account-commands/) use them on
+  every run.
 - `GrantRoleToRoleless` gives a role to every account holding none and
   returns how many it changed. It refuses an empty role with
   `gouncer.ErrEmptyRole`, and running it twice changes nothing the

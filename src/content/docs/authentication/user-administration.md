@@ -89,7 +89,7 @@ in English, and the code is the part a client should match on:
 | --- | --- | --- |
 | `role_insufficient` | 403 | The actor holds no privileged role |
 | `role_unknown` | 422 | No role source declares the role, `meta.field` is `role` |
-| `role_beyond_reach` | 403 | The actor does not outrank the role, or the account's current role |
+| `role_beyond_reach` | 403 | The actor does not outrank the role or the account's current role, or the account to enable holds no role or an undeclared one |
 | `role_changed` | 409 | The account's role changed before the write landed |
 | `self_disable_refused` | 422 | An account disabling itself |
 | `self_role_refused` | 422 | An account changing its own role |
@@ -109,9 +109,10 @@ every role they write:
   carries every capability that role carries. It may also change or
   disable only an account whose current role it outranks. Anything
   else gets a 403 with the code `role_beyond_reach`.
-- An account whose role no source declares any more, such as one from
-  a removed plugin, can still be given a new role or disabled. To
-  enable it again, give it a declared role first.
+- An account that holds no role, or one no source declares any more,
+  such as one from a removed plugin, can still be given a new role or
+  disabled. Enabling it gets a 403 with the code `role_beyond_reach`
+  until it holds a declared role.
 - The write lands only if the account still holds the role that was
   checked. If another admin changed it in between, the write gets a
   409 with the code `role_changed`. Reload the account and try again.
@@ -131,6 +132,8 @@ request involved:
 | `admin.CreateAccount(ctx, email, name, password, role)` | The created `Account` |
 | `admin.SetAccountDisabled(ctx, actorID, id, disabled)` | An error, or nil |
 | `admin.SetAccountRole(ctx, actorID, id, role)` | An error, or nil |
+| `admin.SetAccountDisabledFrom(ctx, actorID, id, held, disabled)` | An error, or nil |
+| `admin.SetAccountRoleFrom(ctx, actorID, id, held, role)` | An error, or nil |
 
 `Account` is the administrative view of a user: `ID`, `Email`,
 `Name`, `Disabled`, `Confirmed`, `Role` and `CreatedAt`. It carries
@@ -139,8 +142,9 @@ no password field at all, so a listing cannot leak a hash.
 activates it, which is how a screen tells a pending invitation from
 an active account.
 
-`SetAccountDisabled` and `SetAccountRole` take two ids: `actorID` is
-whoever is making the change, and `id` is the account being changed.
+`SetAccountDisabled`, `SetAccountRole` and their `From` twins take
+two ids: `actorID` is whoever is making the change, and `id` is the
+account being changed.
 When they match the seams return `ErrSelfDisable` and `ErrSelfRole`,
 so nobody can lock themselves out or promote themselves. Because the
 actor is an argument, calling a seam directly still enforces the
@@ -159,10 +163,27 @@ case errors.Is(err, gouncer.ErrLastPrivileged):
 `gouncer.ErrLastPrivileged` is the store refusing to remove the last
 cover. The HTTP handlers translate it to `last_privileged_refused`.
 
-With a role registry, `CreateAccount` and `SetAccountRole` also refuse
-an unknown or empty role with `authkit.ErrUnknownRole`. They take no
-acting role, so they never check reach. A caller acting for an account
-asks the registry's `Outranks` first.
+With a role registry, `CreateAccount`, `SetAccountRole` and
+`SetAccountRoleFrom` also refuse an unknown or empty role with
+`authkit.ErrUnknownRole`. They take no acting role, so they never
+check reach. A caller acting for an account asks the registry's
+`Outranks` first.
+
+The two seams ending in `From` are the ones the routes call. Call
+them too from your own code that changes accounts outside HTTP.
+They take one more argument, `held`, the role the account held when
+you checked it. With a role registry they refuse in two cases:
+
+- The account no longer holds `held`. They return
+  `authkit.ErrRoleChanged`.
+- `SetAccountDisabledFrom` would enable an account whose `held` role
+  is empty or one the registry does not declare. It returns
+  `authkit.ErrBeyondReach`.
+
+Like the other seams, they never check reach. For an acting account,
+ask the registry's `Outranks` about `held` first, and for
+`SetAccountRoleFrom` about the new role too. Without a role registry
+they work like `SetAccountDisabled` and `SetAccountRole`.
 
 ## Sweeping expired sessions
 
