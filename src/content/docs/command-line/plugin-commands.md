@@ -109,6 +109,11 @@ holds any:
 - A command of a failed plugin exits 1.
 - Other plugin commands still run, after one `myapp: warning:` line
   on stderr per failure.
+- If your account commands take their roles from
+  [`DeclaredRoles`](/command-line/account-commands/), every command
+  that names a capability exits 1 with `myapp: register plugins:` and
+  the failure. So does every account command but `account:list` and
+  `account:records`.
 - `migrate` and `seed -yes` apply your own schema steps, then exit 1
   without the plugins' schema or any demo data.
 - `myapp check` prints every failure and exits 1.

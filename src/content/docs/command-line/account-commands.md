@@ -17,8 +17,8 @@ the commands run through `gonsole/auth/sqlite`, as
 modules, at versions that work together:
 
 ```sh
-go get github.com/gopherium/framework/gonsole@v0.7.0
-go get github.com/gopherium/framework/gonsole/auth@v0.8.0
+go get github.com/gopherium/framework/gonsole@v0.8.0
+go get github.com/gopherium/framework/gonsole/auth@v0.9.0
 go get github.com/gopherium/framework/gonsole/auth/postgres@v0.2.0
 ```
 
@@ -115,20 +115,45 @@ left out carries none. The commands call it on each run, so it can
 include the roles your plugins add.
 
 When your plugins fill a registry of roles, such as a
-[`goncierge`](/authorization/overview/) `Registry`, build this
-vocabulary with `RolesFrom` instead of by hand. It takes any value
-that answers `Roles()` and `CapabilitiesOf(role)`, and the
-privileged roles your program names:
+[`goncierge`](/authorization/overview/) `Registry`, let
+`DeclaredRoles` build this function instead of writing it by hand.
+Set it as `Roles` in the `cfg` above, in place of `roles`:
+
+```go
+Roles: accounts.DeclaredRoles(registry, "manage_users"),
+```
+
+On each run it first registers your
+[plugins](/command-line/plugin-commands/#loading-the-plugins), when
+your program has them, so the roles they add are in the registry.
+`Known` is then every role the registry holds, and `Capabilities`
+holds what each of them carries. `Privileged` is every role that
+carries the capability you name. `DeclaredRoles` takes any value
+that answers `Roles()`, `CapabilitiesOf(role)` and
+`HoldersOf(capability)`.
+
+Every command that reads the roles fails when a
+[plugin fails](/command-line/plugin-commands/#when-a-plugin-fails),
+or when no role carries the capability, such as a misspelled one.
+That is each account command but `account:list` and
+`account:records`, and, through `Authorize`, every command that
+names a capability, your own included:
+
+```text
+$ myapp account:role maria.perez@example.com editor -as admin@example.com
+myapp: no role carries the capability "manage_user"
+```
+
+To name the privileged roles yourself, write the function with
+`RolesFrom`. It reads the registry as it is, so call
+`call.Plugins(ctx)` first when your plugins add roles. It takes the
+registry and those roles:
 
 ```go
 func roles(context.Context, gonsole.Call) (accounts.Roles, error) {
 	return accounts.RolesFrom(registry, []string{"admin"}), nil
 }
 ```
-
-`Known` is then every role the registry holds, and `Capabilities`
-holds what each of them carries. A role that a plugin adds to the
-registry reaches the account commands with no change to `roles`.
 
 `Commands` returns six of the commands below. `Records` returns the
 seventh, `account:records`.
@@ -149,6 +174,22 @@ A [dry run](/command-line/writing-commands/#writes-and-dry-runs)
 misses one error. A change that would leave no enabled account under
 a privileged role passes the dry run. With `-yes` it fails with
 `<email> is the last enabled privileged account`.
+
+`account:enable` refuses an account that holds no role, or a role
+left out of `Known`, such as one from a removed plugin. It refuses
+on dry runs too:
+
+```text
+$ myapp account:enable maria.perez@example.com -as admin@example.com
+myapp: the account maria.perez@example.com holds the undeclared role reviewer, give it a declared role before enabling it
+```
+
+Give the account a role from `Known` with `account:role` first.
+
+`account:role`, `account:disable` and `account:enable` write only
+if the account still holds the role they checked. If someone
+changed it in between, the run changes nothing and fails with
+`the role of <email> changed after the check, run the command again`.
 
 `account:create-admin` is the command for an empty database. It
 runs your `Migrations` itself and needs neither `-yes` nor `-as`.
@@ -354,6 +395,15 @@ Storing a record can wait up to the record timeout or the
 `BusyTimeout` your opener gives `sqlite.Open`, whichever is longer.
 SQLite does not stop waiting for a busy file when the record timeout
 runs out.
+
+## Upgrading from gonsole/auth 0.8.0
+
+`gonsole/auth` 0.9.0 removes nothing. But `account:enable` now
+refuses an account that holds no role, or a role left out of
+`Known`, on dry runs too. So a script that enabled such an account
+now exits 1. Give those accounts a role first: `account:grant-role`
+gives one to every account holding none, and `account:role` changes
+one account at a time.
 
 ## Upgrading from gonsole/auth 0.7.0
 

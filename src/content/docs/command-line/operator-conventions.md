@@ -93,6 +93,13 @@ when you try to disable your own account or change your own role.
 If recording fails, the run exits 1 even though the change was made.
 Check before you run it again.
 
+`account:enable` also exits 1, dry runs included, on an account that
+holds no role or a role the program no longer declares. Give it a
+declared role with `account:role` first. When someone changes an
+account's role between the check and the write, `account:role`,
+`account:disable` and `account:enable` exit 1 and change nothing.
+Run the command again.
+
 An old spelling with a space may still run, after a warning such as
 `myapp: "report create" is deprecated, use "report:create"`.
 
