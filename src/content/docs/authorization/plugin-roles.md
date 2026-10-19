@@ -30,6 +30,11 @@ if err != nil {
 
 `Declare` replaces everything the plugin declared before, in one step.
 `Withdraw("events")` removes it all when the plugin goes away.
+Accounts that hold one of its roles keep the role name. They can
+still be given a declared role or disabled, but the
+[admin routes](/authentication/user-administration/#checking-roles-against-a-registry)
+and the [account commands](/command-line/account-commands/) refuse
+to enable them until they hold a declared role.
 
 ## The prefix rule
 

@@ -74,7 +74,10 @@ and changes nothing.
 `caller` and `target` are role names. `Outranks` and `Grantable`
 tell you which roles an account may give: those its own role
 outranks. The [account commands](/command-line/account-commands/)
-can read their roles from the registry through `RolesFrom`.
+read their roles from the registry through `DeclaredRoles`, which
+treats every role `HoldersOf` answers for the capability you name as
+privileged. `RolesFrom` does the same with privileged roles you name
+yourself.
 
 `New()` and a plain `var registry goncierge.Registry` both work.
 Every method is safe to call from many goroutines at once, and a
