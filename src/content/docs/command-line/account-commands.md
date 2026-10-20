@@ -391,10 +391,10 @@ Seed: func(ctx context.Context, call gonsole.Call) error {
 },
 ```
 
-Storing a record can wait up to the record timeout or the
-`BusyTimeout` your opener gives `sqlite.Open`, whichever is longer.
-SQLite does not stop waiting for a busy file when the record timeout
-runs out.
+With `dbkit/sqlite` 0.2.0 or later, storing a record stops waiting
+when the record timeout runs out. On 0.1.0 it can wait up to the
+`BusyTimeout` your opener gives `sqlite.Open`. See
+[Waiting for a lock](/database/sqlite/#waiting-for-a-lock).
 
 ## Upgrading from gonsole/auth 0.8.0
 
