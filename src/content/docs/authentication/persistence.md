@@ -159,7 +159,9 @@ point in the list above holds for it. A few things differ:
 
 - Every write runs in a transaction that holds the whole file's write
   lock from its first statement. Another writer waits up to the busy
-  timeout you gave `dbkit/sqlite`, then fails.
+  timeout you gave `dbkit/sqlite`, then fails. From `dbkit/sqlite`
+  0.2.0 on, it also [stops once its context
+  ends](/database/sqlite/#waiting-for-a-lock).
 - A failure from a busy or locked file, or from a constraint, carries
   dbkit's error class. `errors.Is(err, dbkit.ErrBusy)` tells you to try
   again later.
