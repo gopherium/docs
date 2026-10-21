@@ -187,6 +187,9 @@ The codes authkit can answer with:
 | `user_id_malformed`, `user_not_found` | The id is not a UUID, or matches no account |
 | `self_disable_refused`, `self_role_refused` | An account changing itself |
 | `last_privileged_refused` | The last administrator cannot be removed |
+| `setup_done` | The site already has its [first account](/authentication/first-account/) |
+| `setup_code_invalid`, `setup_code_expired` | The setup code is wrong, or right but expired |
+| `setup_code_file` | The setup code file cannot be used |
 | `request_cross_origin` | A browser write came from another origin |
 | `internal` | Something failed on the server |
 

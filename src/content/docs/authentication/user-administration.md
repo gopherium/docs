@@ -248,6 +248,10 @@ twice is safe:
 created, err := authkit.EnsureAdmin(ctx, store, email, name, password, "admin")
 ```
 
+An owner with no shell can run none of these. They read a one-time
+setup code from a file and create the account in the browser, as
+[The first account](/authentication/first-account/) explains.
+
 ## Giving a role to accounts that hold none
 
 An installation that existed before it adopted roles has accounts with

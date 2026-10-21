@@ -118,6 +118,9 @@ through the admin routes.
 - **Send `Strict-Transport-Security`.** The guard judges an older
   browser by host alone, never by scheme. HSTS keeps that browser on
   HTTPS.
+- **Create the setup code's folder at mode 0700.** If you use the
+  [first account](/authentication/first-account/) setup, nobody else
+  should even list that folder. authkit never checks it.
 
 Found a vulnerability? Report it privately through the
 [gouncer security policy](https://github.com/gopherium/gouncer/blob/main/SECURITY.md).

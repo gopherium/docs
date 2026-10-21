@@ -25,11 +25,12 @@ store := authkitpg.NewUserStore(pool)
 ```
 
 `Migrate` creates or updates the `auth` schema. `NewUserStore` then
-gives you one value that satisfies three different interfaces:
-`gouncer.Store`, `authkit.AdminStore` and `authkit.SessionReaper`. So
-the same `store` feeds the login handlers, the
-[admin surface](/authentication/user-administration/) and the session
-cleanup, with no extra wiring.
+gives you one value that satisfies four different interfaces:
+`gouncer.Store`, `authkit.AdminStore`, `authkit.SessionReaper` and
+`authkit.SetupStore`. So the same `store` feeds the login handlers,
+the [admin surface](/authentication/user-administration/), the session
+cleanup and the [first account setup](/authentication/first-account/),
+with no extra wiring.
 
 ## Keep migrations separate
 
@@ -114,6 +115,16 @@ one you can recreate from scratch.
   second time. The [grandfathering
   command](/authentication/user-administration/#giving-a-role-to-accounts-that-hold-none)
   is built on it.
+- `HasUsers` reports whether the store holds any account, disabled and
+  unconfirmed ones too. `CreateFirstUser` stores an account only while
+  the store holds none. Otherwise it answers `authkit.ErrSetupDone`
+  and stores nothing.
+- On PostgreSQL, `CreateFirstUser` first locks the whole `auth.users`
+  table, because an empty table has no row to lock. Other writes wait,
+  and reads go on. It needs READ COMMITTED, PostgreSQL's default
+  level, where each statement sees what was committed before it. It
+  refuses any other level. If you hand the store your own transaction
+  with `store.Within(tx)`, start that transaction at READ COMMITTED.
 - Every read of a user, by email, by id, by many ids or by session,
   carries the role the account holds.
 - `ListUsers` lists accounts by name without regard to the case of A
@@ -162,6 +173,9 @@ point in the list above holds for it. A few things differ:
   timeout you gave `dbkit/sqlite`, then fails. From `dbkit/sqlite`
   0.2.0 on, it also [stops once its context
   ends](/database/sqlite/#waiting-for-a-lock).
+- `CreateFirstUser` takes no table lock. It checks and inserts inside
+  one such write transaction, so two first accounts run one after the
+  other.
 - A failure from a busy or locked file, or from a constraint, carries
   dbkit's error class. `errors.Is(err, dbkit.ErrBusy)` tells you to try
   again later.

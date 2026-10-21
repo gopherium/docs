@@ -32,6 +32,13 @@ rather than waving traffic through. Both answers use the same JSON
 shape as every other [error](/authentication/sessions-over-http/#composing-error-responses),
 so a client matches on the code.
 
+Wrap the
+[setup code routes](/authentication/first-account/#wiring-it-up) in
+the same middleware. A wrong or expired setup code answers `401`, so
+it counts like a failed login.
+The `429` message still speaks of login attempts there, one more
+reason to match on the code.
+
 ## Limiting without the middleware
 
 The middleware counts a failed login by watching a `401` response go

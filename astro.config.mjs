@@ -31,6 +31,7 @@ export default defineConfig({
 						{ slug: 'authentication/users-and-passwords' },
 						{ slug: 'authentication/sessions-over-http' },
 						{ slug: 'authentication/user-administration' },
+						{ slug: 'authentication/first-account' },
 						{ slug: 'authentication/avatars' },
 						{ slug: 'authentication/invites-and-resets' },
 						{ slug: 'authentication/persistence' },
