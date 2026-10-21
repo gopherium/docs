@@ -98,6 +98,36 @@ the same peer ranges.
 follows the filter rules of that DataViews release. A list built on
 another release gets a peer warning when it installs godmin.
 
+## Upgrading from godmin 0.22.0
+
+godmin 0.23.0 shows every failed write in a toast, never inside a
+dialog or above the list, as WordPress does. Take 0.23.1 or later,
+which lets a dialog take a write's promise whatever it ends with.
+Change your code in these places:
+
+- `ConfirmDialog`'s `onConfirm` no longer answers a failure to show.
+  To close the dialog at once, make it a plain function that returns
+  nothing, and drop the `async` your old handler needed. An `async`
+  function always returns a promise. Return the write's promise to
+  keep the dialog busy until the write ends. Escape, a click outside
+  it and its close button now close it even while it works.
+- `ConfirmBody` and `RenameBody` no longer take `failure`, and
+  `RenameBody` no longer takes `busy`. Close a rename when the reader
+  presses Save, then write. `RenameBody` also sends a name left as it
+  was, and stops only a blank one.
+- `useListRun` no longer answers `failure`, so drop the notice you
+  showed above the list. The function that `run.onStart()` answers
+  now takes only whether a row moved.
+- `useBulkRun` toasts your `failed` words when a row failed, in place
+  of the `done` words.
+
+TypeScript points at each prop and field that went away, at an
+`onConfirm` that answers a failure and at a run settled with a
+failure. The rest changes only what the reader sees. In each case,
+show the failure in a toast, as
+[a failure from a dialog](/admin-ui/lists/#a-failure-from-a-dialog)
+shows.
+
 ## Upgrading from godmin 0.19.0
 
 `startListDates` and `listDate` left the main entry. Import them from

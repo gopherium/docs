@@ -137,9 +137,10 @@ setViewport(PHONE)
 jsdom lays nothing out, so no element has a size or a place on the
 screen. The WordPress modal looks for the first element it can focus
 among those on screen, finds none, and leaves the focus where it was.
-A test that checks the dialog focused Cancel then fails, though a
-browser focuses it. `stubLayout` gives every element one small box,
-as a browser does for an element on screen:
+A test that checks the dialog focused Cancel, or that a form dialog
+put the cursor in its first field, then fails, though a browser
+moves the focus there. `stubLayout` gives every element one small
+box, as a browser does for an element on screen:
 
 ```ts
 import { stubLayout } from '@gopherium/godmin/testing'

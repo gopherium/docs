@@ -183,7 +183,11 @@ Two behaviors differ from `Page`:
 
 It renders the design system's error notice and announces the
 message to screen readers. Use it wherever you would otherwise
-render a bare error string.
+render a bare error string, such as a screen that failed to load. A
+write that fails in a dialog or in a run over list rows goes in a
+toast instead, as
+[what goes in a toast](/admin-ui/loading-and-feedback/#what-goes-in-a-toast)
+explains.
 
 ## LoadMore
 

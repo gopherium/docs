@@ -1,6 +1,6 @@
 ---
 title: Lists with DataViews
-description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, runs over the picked rows, confirmations, confirms outside a list, renames, bulk messages, uploads, its Spanish chrome, its dates, and the table look for lists that stay custom.
+description: Hosting a WordPress DataViews list in a godmin page, its view in the address, paging it on the server, empty states, runs over the picked rows, confirmations, confirms outside a list, renames, forms in a dialog, bulk messages, uploads, its Spanish chrome, its dates, and the table look for lists that stay custom.
 ---
 
 DataViews is the WordPress list component. It draws the search box,
@@ -223,15 +223,20 @@ from that line.
 ## Notices above a list
 
 Anything you put in a list page before the list itself, such as an
-`ErrorNotice`, lines up with the title rather than the canvas edge,
-and keeps 16px between itself and the list:
+`ErrorNotice` for a list that failed to load, lines up with the title
+rather than the canvas edge, and keeps 16px between itself and the
+list:
 
 ```tsx
 <Page title="Users" list>
-	{failure === undefined ? null : <ErrorNotice>{failure}</ErrorNotice>}
+	{loadFailure === undefined ? null : <ErrorNotice>{loadFailure}</ErrorNotice>}
 	<DataViews {...props} />
 </Page>
 ```
+
+A write that fails from a row action goes in a toast instead, as
+[what goes in a toast](/admin-ui/loading-and-feedback/#what-goes-in-a-toast)
+explains.
 
 ## A drop zone over a list
 
@@ -377,7 +382,7 @@ call per row, all at once, and counts how they went:
 import { runEach, useToaster } from '@gopherium/godmin'
 import type { Action } from '@wordpress/dataviews'
 
-export function useArchiveAction(onFailure: (message: string) => void): Action<Order> {
+export function useArchiveAction(): Action<Order> {
 	const toaster = useToaster()
 	return {
 		id: 'archive',
@@ -385,11 +390,10 @@ export function useArchiveAction(onFailure: (message: string) => void): Action<O
 		supportsBulk: true,
 		callback: async (orders) => {
 			const { asked, done, failures } = await runEach(orders, (order) => archiveOrder(order.id))
-			if (done > 0) {
-				toaster.show(`Archived ${done} of ${asked}.`)
-			}
 			if (failures.length > 0) {
-				onFailure(`Could not archive ${failures.length} of ${asked}.`)
+				toaster.show(`Could not archive ${failures.length} of ${asked}.`)
+			} else {
+				toaster.show(`Archived ${done} of ${asked}.`)
 			}
 		},
 	}
@@ -397,8 +401,7 @@ export function useArchiveAction(onFailure: (message: string) => void): Action<O
 ```
 
 The action lives in a hook, because `useToaster` only works inside a
-component. The screen passes `onFailure`, which shows the message in
-its notice.
+component.
 
 `asked` is how many rows `runEach` got and `done` is how many calls
 worked. `failures` holds each row that failed with its error, in the
@@ -409,48 +412,51 @@ report an error that way, so a call can hand back the client's result
 as it is. `runEach` itself never fails, so one bad row
 never hides the others.
 
-Toast what worked. Show what failed in a notice above the list, as
-in the part above, and as
-[success toasts, failure notices](/admin-ui/loading-and-feedback/#success-toasts-failure-notices)
-explains.
+Show one toast. When a row failed, it says what failed, because that
+is what the reader has to act on. Otherwise it says what worked. The
+WordPress Trash action does the same, and
+[what goes in a toast](/admin-ui/loading-and-feedback/#what-goes-in-a-toast)
+explains why a failure goes there.
 
 ## Bulk messages
 
-`bulkNotes` turns the outcome into those two messages, in your own
-words:
+`bulkNotes` turns the outcome into those messages, in your own words:
 
 ```tsx
 const notes = bulkNotes(orders, outcome, {
 	done: (count, only) => (only === undefined ? `${count} orders archived.` : `"${only.title}" archived.`),
 	failed: (failures, asked) => `${failures.length} of ${asked} orders could not be archived.`,
 })
-if (notes.toast !== undefined) {
-	toaster.show(notes.toast)
+const message = notes.notice ?? notes.toast
+if (message !== undefined) {
+	toaster.show(message)
 }
-onFailure(notes.notice)
 ```
 
 Pass the rows you gave `runEach` and its outcome. `done` runs when at
-least one row worked, with how many did. `only` is the row itself
-when the reader picked exactly one, so the message can name it.
-`failed` runs when at least one row failed, with every failure and
-its error, so it can count them or join their reasons. A message
-nothing calls for is `undefined`.
+least one row worked, with how many did, and fills `toast`. `only` is
+the row itself when the reader picked exactly one, so the message can
+name it. `failed` runs when at least one row failed, with every
+failure and its error, so it can count them or join their reasons,
+and fills `notice`. A message nothing calls for is `undefined`.
+
+Toast `notice` in place of `toast` when both are there, as the
+example does, so the reader sees one toast.
 
 ## Running an action over the picked rows
 
 Every list action that changes rows does the same things around the
-calls: one failure notice above the list, the list reloaded, one
-toast, and the focus moved back to the list once a row moved.
-`useListRun` and `useBulkRun` hold those things for you:
+calls: the list reloaded, one toast, and the focus moved back to the
+list once a row moved. `useListRun` and `useBulkRun` hold those
+things for you:
 
 ```tsx
-import { ErrorNotice, Page, RunConfirm, useBulkRun, useListRun } from '@gopherium/godmin'
+import { Page, RunConfirm, useBulkRun, useListRun } from '@gopherium/godmin'
 
 function OrdersScreen() {
 	const client = useQueryClient()
 	const list = useListView<View>(defaults)
-	const { failure, run, region } = useListRun('orders', list.onChangeSelection)
+	const { run, region } = useListRun('orders', list.onChangeSelection)
 	const refresh = useCallback(() => client.invalidateQueries({ queryKey: ['orders'] }), [client])
 	const bulk = useBulkRun<Order>(run, refresh)
 	const actions = useMemo<Action<Order>[]>(
@@ -472,7 +478,6 @@ function OrdersScreen() {
 	)
 	return (
 		<Page title="Orders" list listLabel="Orders" listRef={region}>
-			{failure === undefined ? null : <ErrorNotice>{failure}</ErrorNotice>}
 			<DataViews {...props} actions={actions} />
 		</Page>
 	)
@@ -486,33 +491,39 @@ confirm over in the middle of the run: Cancel would work again, and
 the confirm button could start a second run. When your words or your
 calls change with the screen, list them in the dependencies too.
 
-`useListRun` holds the failure the last run left above the list. A
-new run clears it as it starts. When two runs overlap, only the
-latest one shows how it went. Once a run moved a row, the list region
-takes the focus, so a keyboard reader is not left on a button that
-went away with its row.
+`useListRun` keeps track of the runs on the list. Once a run moved a
+row, the list region takes the focus, so a keyboard reader is not
+left on a button that went away with its row. When two runs overlap,
+only the latest one moves the focus. The list holds no failure. A run
+shows how it went in its toast.
+
+`useListRun` hands the same `run` for as long as the screen stays,
+whichever list it shows. So when the reader moves to another tab, the
+handler `useBulkRun` builds from it stays the same too, as long as
+your `refresh` does.
 
 Its first argument names the list on show. Put the list and its tab
 in it, such as `'orders trash'`. When that name changes, the list
-forgets its failure, clears the ticked rows and ignores any run
-started on the list before. The second argument replaces the ticked
+clears the ticked rows and ignores any run started on the list
+before. The second argument replaces the ticked
 rows. Pass the setter that holds them, such as
 `list.onChangeSelection`, or a setter from a parent component. The
 rows clear in the same frame the new list appears.
 
 `useBulkRun` makes one call per row with `runEach`, waits for
 `refresh`, shows one toast in your [bulk words](#bulk-messages) and
-then settles the run with the notice. Wrap `refresh` in `useCallback`,
-or the handler changes on every render. `refresh` gets the rows the
-run acted on, so it can also forget each row's own cached copy. If
-`refresh` rejects, the run still shows its toast and its notice and
-settles, then rejects with that error.
+then settles the run. The toast holds your `failed` words when any
+row failed, and your `done` words when every row worked. Wrap
+`refresh` in `useCallback`, or the handler changes on every render.
+`refresh` gets the rows the run acted on, so it can also forget each
+row's own cached copy. If `refresh` rejects, the run still shows its
+toast and settles, then rejects with that error.
 
 `RunConfirm` is the body of the confirm modal. It runs the action
 when the reader confirms, shows the confirm button busy and keeps
 Cancel inert while the run goes, and closes once the run settles. A
-failure shows above the list, not inside the modal. It also closes
-when the run rejects, and the error still reaches your app.
+failure shows in the run's toast, never inside the modal. It also
+closes when the run rejects, and the error still reaches your app.
 
 `listLabel` and `listRef` make the list a region with a name, which
 a screen reader announces, and give the focus its target. The region
@@ -520,9 +531,9 @@ stays out of the Tab order. Pass both. A list with a ref and no label
 still takes the focus, but a screen reader has no name to announce.
 
 A button outside the list, such as one in the page header, can share
-the same notice. Call `run.onStart()` as it starts, and the function
-it answers once it ends, with the failure or `undefined` and whether
-a row moved.
+the same run. Call `run.onStart()` as its write starts. It answers a
+function, typed `RunSettled`. Call that function once the write ends,
+with whether a row moved, and show how it went in a toast.
 
 ## Confirming an action
 
@@ -563,19 +574,16 @@ For a run you write yourself, `ConfirmBody` is the same body without
 the run:
 
 ```tsx
-import { ConfirmBody } from '@gopherium/godmin'
+import { ConfirmBody, runEach, useToaster } from '@gopherium/godmin'
 
 function TrashModal({ items, closeModal }: RenderModalProps<Post>) {
+	const toaster = useToaster()
 	const [busy, setBusy] = useState(false)
-	const [failure, setFailure] = useState<string>()
 	const confirm = async () => {
 		setBusy(true)
 		const outcome = await runEach(items, (post) => trashPost(post.id))
-		setBusy(false)
-		if (outcome.failures.length > 0) {
-			setFailure('The post could not be moved to the trash.')
-			return
-		}
+		const moved = outcome.failures.length === 0
+		toaster.show(moved ? 'Post moved to the trash.' : 'The post could not be moved to the trash.')
 		closeModal?.()
 	}
 	return (
@@ -583,7 +591,6 @@ function TrashModal({ items, closeModal }: RenderModalProps<Post>) {
 			confirmLabel="Move to trash"
 			cancelLabel="Cancel"
 			busy={busy}
-			failure={failure}
 			onConfirm={() => void confirm()}
 			onCancel={closeModal}
 		>
@@ -594,9 +601,13 @@ function TrashModal({ items, closeModal }: RenderModalProps<Post>) {
 ```
 
 It draws the question, then Cancel as accent text and the solid
-confirm button at the end. While `busy`, the confirm button shows a
-spinner and ignores a second press, and Cancel closes nothing.
-`failure` shows an error notice inside the modal, above the buttons.
+confirm button at the end, 20px under the question. While `busy`,
+the confirm button shows a spinner and ignores a second press, and
+Cancel closes nothing.
+
+The body never shows a failure. Close the modal once the write ends,
+whether it worked or not, and say how it went in a toast, as the
+WordPress list confirms do.
 
 ## A confirm outside a list
 
@@ -605,21 +616,24 @@ trash in an editor or Empty Trash above a list. `ConfirmDialog` asks
 those, as WordPress dialogs do:
 
 ```tsx
+import { useToaster } from '@gopherium/godmin'
 import { ConfirmDialog } from '@gopherium/godmin/dialogs'
+import { Button } from '@wordpress/ui'
 
 function TrashButton({ post }: { post: Post }) {
+	const toaster = useToaster()
 	const [asking, setAsking] = useState(false)
-	const trash = async () => {
-		try {
-			await trashPost(post.id)
-		} catch {
-			return 'The post could not be moved to the trash.'
-		}
-		return undefined
+	const [trashing, setTrashing] = useState(false)
+	const trash = () => {
+		setTrashing(true)
+		trashPost(post.id)
+			.then(() => toaster.show('Post moved to the trash.'))
+			.catch((failure) => toaster.show(failure.message))
+			.finally(() => setTrashing(false))
 	}
 	return (
 		<>
-			<Button variant="outline" onClick={() => setAsking(true)}>Move to trash</Button>
+			<Button variant="outline" loading={trashing} onClick={() => setAsking(true)}>Move to trash</Button>
 			{asking ? (
 				<ConfirmDialog size="small" confirmLabel="Move to trash" cancelLabel="Cancel" onConfirm={trash} onClose={() => setAsking(false)}>
 					Move "Hello" to the trash?
@@ -643,18 +657,44 @@ question is the only text. Give a plain confirm a `title`, and it
 gets a header with a close button. Cancel has the focus when the
 dialog opens.
 
-`onConfirm` resolves with the failure to show, or with `undefined`
-once it is done. A failure shows inside the dialog, above the
-buttons, and the dialog stays open for another try. Once it is done,
-the dialog calls `onClose`, which takes it away. While the action
-runs, the confirm button shows a spinner and nothing closes the
-dialog: not Cancel, not Escape, not a click outside it. When the
-dialog goes away, the focus goes back to the button that opened it,
-unless your action moved it, as a finished run over a list does.
+What `onConfirm` returns decides when the dialog goes:
 
-If `onConfirm` throws, the dialog stops waiting, and the reader can
-close it again. The error still reaches your app, so catch the
-failures you expect, as the example does.
+- Return nothing, and the dialog closes at once while your write
+  runs. WordPress does this for a confirm that opens from a button or
+  a screen menu, such as Move to trash in its editor. Show the write
+  as busy on the button that opened the dialog, as the example does
+  with `loading`. Make `onConfirm` a plain function, as `trash` is.
+  An `async` function always returns a promise, so the dialog would
+  stay open until the write ends.
+- Return the write's promise, and the dialog stays open while it
+  runs. The confirm button shows a spinner and Cancel greys out. When
+  the promise ends, worked or failed, the dialog closes. WordPress
+  does this for a confirm that opens from a row's own menu, so use it
+  for the rows of a list you draw yourself, outside DataViews:
+
+```tsx
+<ConfirmDialog
+	confirmLabel="Delete"
+	cancelLabel="Cancel"
+	onConfirm={() => deleteGroup(group.id).catch((failure) => toaster.show(failure.message))}
+	onClose={() => setAsking(false)}
+>
+	Delete "{group.name}"?
+</ConfirmDialog>
+```
+
+Either way, show a failure in a toast. The dialog never shows one
+inside. Put the `.catch` inside `onConfirm` and return what it
+answers, as [a failure from a dialog](#a-failure-from-a-dialog)
+explains.
+
+The dialog calls `onClose` after Cancel, Escape, a click outside it,
+the close button of a titled confirm, or a confirm that finished.
+Escape, a click outside it and its close button work at any time,
+even while the write runs. The write then goes on, and `onClose`
+still runs only once. When the dialog goes away, the focus goes back
+to the button that opened it, unless your action moved it, as a
+finished run over a list does.
 
 Render the dialog only while you ask, as the example does. Each new
 ask then starts fresh.
@@ -673,65 +713,280 @@ Cancel and the submit button:
 
 ```tsx
 import { RenameBody, useToaster } from '@gopherium/godmin'
+import type { Action } from '@wordpress/dataviews'
 
-function RenameModal({ items: [post], closeModal }: RenderModalProps<Post>) {
+function useRenameAction(): Action<Post> {
 	const toaster = useToaster()
-	const [busy, setBusy] = useState(false)
-	const [failure, setFailure] = useState<string>()
-	const rename = async (title: string) => {
-		setBusy(true)
-		setFailure(undefined)
-		try {
-			await renamePost(post.id, title)
-		} catch {
-			setBusy(false)
-			setFailure('The name could not be updated.')
-			return
-		}
-		toaster.show('Name updated.')
-		closeModal?.()
-	}
-	return (
-		<RenameBody
-			name={post.title}
-			fieldLabel="Name"
-			submitLabel="Rename"
-			cancelLabel="Cancel"
-			busy={busy}
-			failure={failure}
-			onSubmit={(title) => void rename(title)}
-			onCancel={closeModal}
-		/>
+	const [typed, setTyped] = useState<Post>()
+	return useMemo<Action<Post>>(
+		() => ({
+			id: 'rename',
+			label: 'Rename',
+			modalHeader: 'Rename',
+			modalFocusOnMount: 'firstContentElement',
+			RenderModal: ({ items: [post], closeModal }) => (
+				<RenameBody
+					name={typed?.id === post.id ? typed.title : post.title}
+					fieldLabel="Name"
+					submitLabel="Save"
+					cancelLabel="Cancel"
+					onSubmit={(title) => {
+						closeModal?.()
+						setTyped(undefined)
+						renamePost(post.id, title)
+							.then(() => toaster.show('Name updated.'))
+							.catch((failure) => {
+								setTyped({ ...post, title })
+								toaster.show(failure.message)
+							})
+					}}
+					onCancel={closeModal}
+				/>
+			),
+		}),
+		[toaster, typed],
 	)
-}
-
-const renameAction: Action<Post> = {
-	id: 'rename',
-	label: 'Rename',
-	modalHeader: 'Rename',
-	modalFocusOnMount: 'firstContentElement',
-	RenderModal: RenameModal,
 }
 ```
 
 Leave `modalSize` out, so the rename takes the DataViews width, 560px,
-as the WordPress rename does.
+as the WordPress rename does. WordPress titles it Rename and labels
+its button Save, and the example does the same.
 
-The submit button stays disabled while the field is blank or still
-holds `name`, so nobody writes the same name twice. Enter in the field
-does what the submit button does. `onSubmit` gets the name exactly as
-typed, and your code does the write and the toast. While `busy`, the
-submit button shows a spinner and ignores a second press. `failure`
-shows an error notice under the field, and the field keeps what the
-reader typed, so they can fix it and try again.
+The submit button is off only while the field is blank. A name left
+as it was can still be sent, as in the WordPress rename. Enter in the
+field does what the submit button does. `onSubmit` gets the name
+exactly as typed, and your code does the write and the toast.
+
+A rename closes the moment the reader presses Save, before its write,
+as WordPress closes its rename. So the body is never busy and never
+shows a failure. When the write fails, say so in a toast and keep
+what the reader typed. `name` is the text the field starts with, so
+hand that text back on the next open, as the example does with
+`typed`. The reader then finds the name they typed and can try once
+more.
 
 Every word comes from you: the field label, both button labels and
-the failure. Pass them through your translations.
+the toasts. Pass them through your translations.
 
 `modalFocusOnMount: 'firstContentElement'` puts the cursor in the
 field when the modal opens, as the WordPress rename does. Without it,
 the modal window itself takes the focus, and the reader has to press
 Tab to reach the field.
+
+## A form in a row action
+
+Some row actions ask for more than a yes or a name, such as a copy
+with a title of its own or a new role for a user. `FormBody` is the
+body of that modal: the fields you give it, an accent text Cancel and
+the submit button. It is a real form, so Enter in a field sends it:
+
+```tsx
+import { FormBody, useToaster } from '@gopherium/godmin'
+import type { Action, RenderModalProps } from '@wordpress/dataviews'
+import { InputControl } from '@wordpress/ui'
+
+function DuplicateModal({ items: [post], closeModal }: RenderModalProps<Post>) {
+	const toaster = useToaster()
+	const [title, setTitle] = useState(`${post.title} (Copy)`)
+	const [busy, setBusy] = useState(false)
+	const duplicate = () => {
+		setBusy(true)
+		duplicatePost(post.id, title)
+			.then(() => toaster.show(`"${toaster.name(title)}" created.`))
+			.catch((failure) => toaster.show(failure.message))
+			.finally(() => closeModal?.())
+	}
+	return (
+		<FormBody
+			kind="copy"
+			submitLabel="Duplicate"
+			cancelLabel="Cancel"
+			canSubmit={title.trim() !== ''}
+			busy={busy}
+			onSubmit={duplicate}
+			onCancel={closeModal}
+		>
+			<InputControl label="Title" value={title} onChange={(event) => setTitle(event.target.value)} />
+		</FormBody>
+	)
+}
+
+const duplicateAction: Action<Post> = {
+	id: 'duplicate',
+	label: 'Duplicate',
+	modalHeader: 'Duplicate',
+	modalFocusOnMount: 'firstContentElement',
+	RenderModal: DuplicateModal,
+}
+```
+
+`submitLabel` and `cancelLabel` name the two buttons. `onSubmit` runs
+from the submit button or from Enter, and `onCancel` from Cancel.
+`canSubmit` turns the submit button off, for example while a needed
+field is empty. The button stays reachable with Tab, so a keyboard
+reader still finds it. While `busy`, the submit button shows a
+spinner and a second send does nothing. Cancel stays live the whole
+time, as in WordPress forms.
+
+`kind` says what the form does, and sets the space above the buttons
+as WordPress spaces it:
+
+| `kind` | For | Space above the buttons |
+| --- | --- | --- |
+| `edit`, the default | A change to one item, such as a new role | 20px |
+| `copy` | A copy of an item, such as Duplicate | 12px |
+| `create` | Something new | 16px |
+
+When the modal closes depends on the action, as in WordPress:
+
+- A change to one item closes the moment the reader sends it, before
+  its write, like the [rename](#renaming-an-item). Call `closeModal`
+  first, then write.
+- A copy, something new, or a change to several items stays open with
+  its button busy, then closes when the write ends, worked or failed.
+  Set `busy` while it runs, as the example does.
+
+Either way, a failure goes in a toast. `FormBody` never shows one. To
+give the reader back what they typed after a failure, keep it outside
+the modal and pass it in as the first value of the fields, as the
+rename does.
+
+Leave `modalSize` out, so the form takes the DataViews width, 560px,
+as WordPress row forms do. `modalFocusOnMount: 'firstContentElement'`
+puts the cursor in the first field.
+
+## A form dialog
+
+Some forms open from a button outside any list, such as Add Project
+in a page header. `FormDialog` asks those, as WordPress opens its Add
+Page dialog: a card with a title and a close button, the cursor in
+the first field, and the same form as `FormBody` inside:
+
+```tsx
+import { useToaster } from '@gopherium/godmin'
+import { FormDialog } from '@gopherium/godmin/dialogs'
+import { Button, InputControl } from '@wordpress/ui'
+
+function AddProjectDialog({ onClose }: { onClose: () => void }) {
+	const toaster = useToaster()
+	const [name, setName] = useState('')
+	const add = async () => {
+		await addProject(name)
+		toaster.show(`"${toaster.name(name)}" added.`)
+		onClose()
+	}
+	return (
+		<FormDialog
+			title="Add Project"
+			submitLabel="Add"
+			cancelLabel="Cancel"
+			canSubmit={name.trim() !== ''}
+			onSubmit={() => add().catch((failure) => toaster.show(failure.message))}
+			onClose={onClose}
+		>
+			<InputControl label="Name" value={name} onChange={(event) => setName(event.target.value)} />
+		</FormDialog>
+	)
+}
+
+export function AddProjectButton() {
+	const [asking, setAsking] = useState(false)
+	return (
+		<>
+			<Button size="compact" onClick={() => setAsking(true)}>
+				Add Project
+			</Button>
+			{asking ? <AddProjectDialog onClose={() => setAsking(false)} /> : null}
+		</>
+	)
+}
+```
+
+Render the dialog only while you ask, as the example does. Keep the
+state of the fields in the dialog's own component, as
+`AddProjectDialog` does, so each new ask starts with empty fields.
+
+`size` picks the card width from 600px up. `small`, the default,
+draws it 400px wide, as WordPress draws Add Page. `medium` draws it
+560px wide, for a form whose controls need the room. Below 600px both
+are the same sheet along the bottom of the screen. `title` is the
+heading beside the close button. `submitLabel`, `cancelLabel` and
+`canSubmit` work as in `FormBody`. So does `kind`, but a dialog is a
+`create` by default, 16px above its buttons.
+
+`onSubmit` runs from the submit button or from Enter. Return the
+write's promise, and the submit button shows a spinner until the
+write ends. A second send meanwhile does nothing. The dialog never
+closes itself after a send:
+
+- When the write worked, close it yourself, as `add` does with
+  `onClose`.
+- When the write failed, leave it open, as WordPress leaves Add Page.
+  The reader keeps what they typed and can try again. Show the
+  failure in a toast, with the `.catch` inside `onSubmit`, as
+  [a failure from a dialog](#a-failure-from-a-dialog) explains.
+
+A form that opens from a row's own menu, in a list you draw yourself,
+and changes that one item closes before its write, like the
+[rename](#renaming-an-item). Give it `size="medium"`, the width
+WordPress gives its row forms, and `kind="edit"`. In `onSubmit`, take
+the dialog away first, then start the write, and return nothing.
+
+Cancel, Escape, a click outside the dialog and its close button all
+call `onClose`, even while the write runs. When the dialog goes away,
+the focus goes back to the button that opened it.
+
+`FormDialog` comes from `@gopherium/godmin/dialogs`, like
+`ConfirmDialog`, so it needs `@wordpress/components` and its
+stylesheet the same way.
+
+## A failure from a dialog
+
+A write that fails never shows inside a dialog. It shows in a toast,
+as WordPress shows it in its snackbar. When `onSubmit` or `onConfirm`
+returns a promise, show the toast from inside that same function, and
+return the promise that `.catch` answers:
+
+```tsx
+onSubmit={() => save(values).catch((failure) => toaster.show(failure.message))}
+```
+
+`.catch` answers a new promise. That one ends with no error once the
+toast shows. The dialog stops its spinner, a `ConfirmDialog` closes,
+and no error goes on to your app. An `async` function that catches
+its own error inside works the same way, as long as you return what
+it answers.
+
+The line works whatever `save` ends with, the saved item or nothing,
+since the dialog only waits for the promise to end. This needs godmin
+0.23.1 or later.
+
+`.catch` sees a failure only when the write's promise
+rejects. Many GraphQL clients answer an object with `error` instead,
+as [bulk actions](#bulk-actions) says. With such a client, throw that
+`error` inside your write. Otherwise the dialog takes the write as
+one that worked.
+
+Do not add the `.catch` as a separate step and then return the first
+promise:
+
+```tsx
+onSubmit={() => {
+	const saving = save(values)
+	saving.catch((failure) => toaster.show(failure.message))
+	return saving
+}}
+```
+
+The toast shows, but `saving` itself still fails. The dialog waits on
+`saving`, so it gets the error too and hands it on to your app as an
+error nobody caught. The same failure reaches your app a second
+time, after you already showed it.
+
+That handing on is on purpose. A failure you did not catch is one you
+did not expect, and it should not go quiet. It reaches your app,
+where the browser console and your error reporting see it.
 
 ## An upload button
 

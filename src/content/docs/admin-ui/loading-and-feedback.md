@@ -61,7 +61,7 @@ own fade, the swap reads as one motion.
 
 ## Toasts
 
-A toast is a short message that confirms something worked, then
+A toast is a short message that says how something went, then
 removes itself. godmin draws it like the WordPress snackbar: a dark,
 slightly see-through box with white 13px text, 32px above the bottom
 edge. It sits at the center of the canvas, so beside the rail it
@@ -91,6 +91,14 @@ The numbers are the snackbar's own:
 
 On a list page the toast floats over the list footer, as it does in
 WordPress.
+
+An open dialog covers the toasts, as WordPress covers its snackbar.
+On a wide screen a toast shows dimmed under the dark layer around the
+dialog, and on a phone it sits behind the sheet. Screen readers still
+hear it, because every message is also spoken. Most dialogs close as
+their write starts or ends, so their toast shows in full. A
+[form dialog](/admin-ui/lists/#a-form-dialog) stays open after a
+failure, so its toast shows under it, as in WordPress.
 
 `Toaster` renders the region that holds the toasts. Wrap your tree
 once:
@@ -153,17 +161,28 @@ one live region on the page.
   It defaults to `Dismiss`, and it is the only text godmin puts in a
   toast, so set it if your application is not in English.
 
-### Success toasts, failure notices
+### What goes in a toast
 
 Use a toast to confirm a change that worked and could otherwise go
 unnoticed: a record saved, a task completed, a file uploaded. Keep
 the message short and in the past tense, like `Post moved to trash.`
 
-Never use a toast for a failure. A toast goes away on its own, and
-a failure usually needs the user to do something: fix a field, try
-again, or read why it failed. Show the failure as an
-[`ErrorNotice`](/admin-ui/screens/#errornotice) next to the form or
-button it belongs to, so the user sees what failed and where.
+Use a toast for a write that failed in a dialog or in a run over list
+rows too. WordPress shows those in its snackbar, never inside the
+dialog and never above the list, and godmin's dialogs and list runs
+do the same. Say what failed, in the words your server sent when it
+sent some. [A failure from a dialog](/admin-ui/lists/#a-failure-from-a-dialog)
+shows how to raise one from a dialog.
+[Running an action over the picked rows](/admin-ui/lists/#running-an-action-over-the-picked-rows)
+raises it for you after a run over a list.
+
+Keep an [`ErrorNotice`](/admin-ui/screens/#errornotice) for a failure
+that has to stay on the screen until the user acts:
+
+- A screen or a list that failed to load. Show the notice where the
+  content would be.
+- A form on a page of its own, not in a dialog. Show the notice next
+  to the form, so the user sees what failed while they fix it.
 
 Skip the toast in three more cases:
 
