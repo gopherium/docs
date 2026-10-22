@@ -47,6 +47,10 @@ slot. They end with the transaction at the latest. Read a result set
 within the statement timeout, because the rows close when it passes.
 For the same reason `Scan` never takes a `*sql.RawBytes`.
 
+On SQLite, a wait for a lock that starts while you read a later row,
+or close the rows, ends only after `BusyTimeout`, so the slot can stay
+taken until then.
+
 ## Writing parameters
 
 Write each parameter as `$1`, `$2` and so on, once, for both

@@ -26,7 +26,7 @@ db, err := sqlite.Open(cfg.DatabaseURL, sqlite.Options{
 connection. Every connection writes ahead to a log, enforces foreign
 keys, starts each write transaction with `BEGIN IMMEDIATE`, and
 refuses edits of the schema table. A connection waits up to
-`BusyTimeout` for a lock and tries it again every `BusyPoll`.
+`BusyTimeout` for a lock.
 
 Every number is required. `BusyPoll` must be at least 1ms and at most
 `BusyTimeout`. Each connection keeps its own page cache, so `MaxConns`
@@ -49,24 +49,31 @@ it. Run a plain `PRAGMA optimize` from your own scheduled job.
 
 SQLite lets one connection write at a time. The other writers wait for
 its lock. A wait ends at once when the context of your call ends. That
-holds for a statement you prepared with `PrepareContext` too. When you
-read or close the rows of a query, a wait ends with the context you
-gave the query.
+holds for a statement you prepared with `PrepareContext` too.
+
+A wait that starts while you read a later row of a query, or close its
+rows, does not end with the query's context. It ends after
+`BusyTimeout`. This is rare, for example a query that reads an attached
+file that does not use a write-ahead log.
 
 A call stopped by its context returns an error that matches your
-context's error, `ctx.Err()`. Some errors, such as a `BeginTx` error,
-also match the class `dbkit.ErrBusy` once you pass them to
-[`sqlite.Classify`](/database/overview/#error-classes). Check with
-`errors.Is`, never with `==`.
+context's error, `ctx.Err()`. When opening a connection answered busy
+before your context ended, the error also matches the class
+`dbkit.ErrBusy` once you pass it to
+[`sqlite.Classify`](/database/overview/#error-classes). So does a
+commit through `dbkit.InTx` or a share that answered busy after its
+context ended. Check with `errors.Is`, never with `==`.
 
 A write can land in the instant before its deadline and still return
 the context error. So before you run a write again, check whether the
 first one was saved.
 
-Never set `PRAGMA busy_timeout`. dbkit keeps it at 0. Setting it brings
-back SQLite's own wait, which ignores the context.
+Leave `PRAGMA busy_timeout` to dbkit. It reads `BusyTimeout`. A value
+you set stays on that connection for every later call that uses it,
+and 0 makes that connection answer busy at once.
 
-Opening a connection waits for a lock the same way. One case is the
+Opening a connection waits for a lock too, and tries again every
+`BusyPoll`. One case is the
 first connection to a new file while another process switches that
 file to its write-ahead log. Each try to open can block for about one
 `BusyPoll`, so keep `BusyPoll` small. When the context of the call
@@ -75,8 +82,9 @@ that opens the connection ends, a try still running goes on, even past
 stopped on a locked file can find its temporary folder still in use at
 cleanup.
 
-A lower `BusyPoll` also sees a freed lock sooner. But it tries the lock
-more often, which costs CPU.
+A lower `BusyPoll` lets an opening connection see a freed lock sooner.
+But it tries the lock more often, which costs CPU. Any other wait tries
+again on SQLite's own schedule, which grows to one try every 100ms.
 
 ## Migrations
 
@@ -154,12 +162,26 @@ To restore a snapshot:
 statement or the next commit. Call `sqlitetest.CheckLibc` in one test,
 so a build that links another `modernc.org/libc` fails.
 
+## Upgrading from 0.2.0
+
+- Move `modernc.org/libc` to v1.79.0 in your `go.mod`, or
+  `sqlitetest.CheckLibc` fails. `go mod tidy` does it.
+- A `BeginTx` error after its context ends, and so an `InTx` error from
+  its begin, no longer matches `dbkit.ErrBusy`. Check the context error
+  with `errors.Is`.
+- A write behind another writer no longer tries the lock again every
+  `BusyPoll`. It follows SQLite's own schedule, up to every 100ms.
+  Change any test or doc that says otherwise.
+- A wait that starts while you read a later row of a query, or close
+  its rows, ends after `BusyTimeout`, not with the query's context.
+- `sql.Conn.Raw` hands out the driver's own connection again. The
+  driver takes the connection's progress handler on each call whose
+  context can end, so do not set one.
+- The module needs Go 1.27.3.
+
 ## Upgrading from 0.1.0
 
 - Set `BusyPoll` from a setting of your own in every `sqlite.Options`,
   including the ones in your tests. `Open` refuses one without it.
 - Remove any `PRAGMA busy_timeout` your code sets.
 - The module needs Go 1.27.2 and `dbkit` 0.3.0.
-- `sql.Conn.Raw` now hands out a dbkit wrapper. The driver's
-  `Serialize`, `NewBackup` and hook methods are no longer reachable
-  through it.
