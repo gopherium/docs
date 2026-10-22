@@ -137,6 +137,45 @@ values:
 - `bleed` removes it, for a screen that manages its own edges, such
   as a full height table or a two pane chat view.
 
+## Notices for the whole application
+
+`Frame.Canvas` takes `notices`, for messages that belong to the whole
+application rather than to one screen, such as "a new version is
+available". They are drawn in a band above your screen:
+
+```tsx
+<Frame.Canvas canvas={mode} notices={updateWaits && <UpdateNotice />}>
+	<YourScreen />
+</Frame.Canvas>
+```
+
+- On a `padded` canvas the notices sit 12px apart and line up with
+  the page title at every width.
+- On a `bleed` canvas they run edge to edge as square strips, the way
+  the WordPress editors draw theirs.
+- When `notices` renders nothing, there is no band at all.
+
+Draw each notice with the design system's `Notice`. The band only
+places them. A screen reader hears a new notice only when you
+announce it, as the `Notice` documentation explains.
+
+## A count beside a menu item
+
+`MenuCount` draws the small number WordPress shows beside a menu
+label, such as how many updates wait:
+
+```tsx
+<a href="/updates">
+	Updates <MenuCount count={3} label="3 updates available" />
+</a>
+```
+
+- It draws nothing when `count` is zero.
+- The number follows the reader's number format, so 1234 reads as
+  1,234 in English.
+- A screen reader reads `label` in place of the number, so pass a
+  whole sentence in the reader's language.
+
 ## Letting routes choose the canvas
 
 With TanStack Router, `@gopherium/godmin/router` lets each route
