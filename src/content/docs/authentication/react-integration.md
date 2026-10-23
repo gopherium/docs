@@ -18,8 +18,8 @@ It ships four entry points, so you take only the layers you want:
 | `@gopherium/react-auth/testing` | Test harness, canned responses, session seeding |
 
 `react` and `@tanstack/react-query` are peer dependencies, meaning
-your application installs them. The `/wpds` screens also expect
-`@wordpress/ui`.
+your application installs them. The `/wpds` entry also expects
+`@wordpress/ui`, and `@wordpress/icons` 18.x for its Users row.
 
 ## The gate
 
@@ -99,7 +99,7 @@ entry has every screen a login needs already built:
   password
 - `SetupCodeStep` and `SetupAccountStep` for a new site's first
   account
-- `usersNavItem` for your navigation
+- `usersMenuItem`, the Users row for your sidebar menu
 
 None of them know your router, and they stay that way by handing
 navigation back to you. `UsersScreen` takes `newUserRender`, an
@@ -111,6 +111,30 @@ Import the stylesheet once:
 
 ```tsx
 import '@gopherium/react-auth/wpds/style.css'
+```
+
+### The Users row
+
+`usersMenuItem` is a row of a godmin
+[sidebar menu](/admin-ui/framing-an-application/#the-sidebar-menu),
+written as data: the label Users in the reader's language, the
+address `/users` and WordPress's people icon. Add it to the rows you
+give `Navigation`:
+
+```tsx
+<Navigation title="MyApp" items={[...menu, usersMenuItem]} home={<Link to="/posts" />} can={check} />
+```
+
+The row names no capability. To hide it from a reader who may not
+manage users, name the capability on your `/users` route:
+
+```tsx
+createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/users',
+	staticData: { capability: 'users.manage' },
+	component: UsersPage,
+})
 ```
 
 ### Setting up the first account
