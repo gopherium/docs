@@ -8,8 +8,8 @@ maybe a button or two on the right, and the content below. The page
 kit is that layout as components, so you stop re-typing it.
 
 Each component's props interface is exported under its own name,
-such as `PageProps` and `NavScreenProps`, for when you wrap one in
-a component of your own.
+such as `PageProps` and `NavigationScreenProps`, for when you wrap
+one in a component of your own.
 
 ## Page
 
@@ -19,8 +19,10 @@ a component of your own.
 </Page>
 ```
 
-`title` is required and becomes the page's single `h1` heading, at
-15px like the title of a WordPress page. `actions` renders top right,
+`title` is required and becomes the page's heading, at 15px like the
+title of a WordPress page. It is an `h1` unless you pass
+`headingLevel`, as [heading levels](#heading-levels) explains.
+`actions` renders top right,
 and `className` and `children` do what they always do. When the
 actions no longer fit beside the title, on a phone for example, they
 move to a line of their own under it.
@@ -71,15 +73,14 @@ which stays out of the Tab order.
 uses both to move the focus back to the list.
 
 A screen that fills the canvas edge to edge builds its own layout
-and uses `PageTitle` directly, so the page still gets exactly one
-`h1`:
+and uses `PageTitle` directly, so the page still gets its heading:
 
 ```tsx
 <PageTitle>Conversations</PageTitle>
 ```
 
 It draws the 15px large heading by default. Pass `variant` to change
-the text size.
+the text size, and `level` to change the heading level.
 
 ## PageTabs
 
@@ -120,8 +121,8 @@ hear both tabs as the current page. Pass it on every tab link, as the
 example does.
 
 `label` names the tab row for assistive technology. The row is a
-navigation region, and the rail is one too, so the name tells them
-apart.
+navigation region, and a screen reader lists it beside the sidebar,
+so the name tells them apart.
 
 The tabs look like the WordPress tabs: 13px labels 16px apart, the
 current one underlined by a 2px grey line as wide as its label, and a
@@ -148,32 +149,58 @@ which renders an `h3` a size smaller. `id` and `tabIndex` pass through
 to the heading, so a screen can name a list after it or move focus to
 it.
 
-## NavScreen
+## Heading levels
 
-`NavScreen` renders a drill-down screen: one you enter from a
-parent screen and leave again, like a settings subsection.
+Without a sidebar menu, the page title is the `h1`. With
+[the sidebar menu](/admin-ui/framing-an-application/#the-sidebar-menu),
+the title of the sidebar screen is the `h1`, as in the WordPress Site
+Editor. Then pass `headingLevel={2}` to every `Page` beside it:
 
 ```tsx
-<NavScreen title="Conversations" back={<Link to="/" />}>
-	<ConversationList />
-</NavScreen>
+<Page title="Posts" headingLevel={2} list>
+	<PostList />
+</Page>
 ```
 
-`back` is the link that leads back up. You pass it as an element
-rather than a path, because godmin does not know your router. The
-kit renders your link with a chevron icon inside it and names it
-with `backLabel` for assistive technology.
+The title keeps its size, only its level changes. A `SectionTitle`
+inside that page renders one level deeper at the same size, an `h3`,
+and so does the title of a `ListEmpty`. Pass `level={2}` to a
+`PageTitle` you draw yourself beside the sidebar.
 
-The remaining props are `description`, `actions` and `footer`. A
-region you leave out renders nothing, not even empty spacing.
+On a phone the sidebar lives in the drawer, so while the drawer is
+shut the page has no `h1`. WordPress's new admin works the same way.
 
-Two behaviors differ from `Page`:
+## NavigationScreen
 
-- The title is an `h2`, not an `h1`, because a drill-down is a
-  layer inside a section rather than a new page.
-- The title takes keyboard focus when the screen mounts, so a
-  screen reader user who followed the link hears where they landed,
-  instead of being dropped back at the top of the document.
+`NavigationScreen` draws one screen of
+[the sidebar menu](/admin-ui/framing-an-application/#the-sidebar-menu),
+the way the WordPress Site Editor draws it: a title row with Back,
+then the content.
+
+```tsx
+<NavigationScreen title="Chats" description="Conversations waiting for a reply.">
+	<ChatList />
+</NavigationScreen>
+```
+
+- `title` is the `h1` of the page, in 20px text. It takes any
+  element, so the root screen can hold your brand.
+- Back is a chevron link at the start of the title row. Inside
+  `Navigation` it goes to the app's `home`. Pass `back`, a link
+  element from your router, to send it somewhere else. The root
+  screen has no Back.
+- `backLabel` names Back for assistive technology. It defaults to
+  "Back", translated by godmin.
+- `description` renders above the content, and `actions` at the end
+  of the title row.
+- `footer` stays at the bottom of the screen while the rest scrolls.
+
+A region you leave out renders nothing, not even empty spacing. The
+title row stays at the top while the screen scrolls.
+
+The title takes no focus when the screen opens. `Navigation` moves
+the focus itself: to Back when a sub menu opens, and to the row the
+reader came from after Back.
 
 ## ErrorNotice
 
@@ -335,11 +362,11 @@ every admin screen runs into:
 | `godmin-list-overlay` | An element laid over a list region, such as a drop zone, set after the list |
 | `--godmin-canvas-gutter` | The canvas padding left and right: 24px, 16px below 640px, none on a full bleed canvas |
 | `--godmin-canvas-gutter-block` | The canvas padding above and below: 16px, none on a full bleed canvas |
-| `--godmin-rail-width` | The width of the rail, 300px, set on `:root` |
-| `--godmin-canvas-margin` | The space around the canvas, 16px, set on `:root`. Beside the rail the canvas leaves it out on that side, and below 782px it has none |
+| `--godmin-nav-sidebar-width` | The width of the sidebar, 300px, set on `:root` |
+| `--godmin-canvas-margin` | The space around the canvas, 16px, set on `:root`. Beside the sidebar the canvas leaves it out on that side, and below 782px it has none |
 
 The canvas sets its two gutters on itself, so read them inside the
-canvas. The rail width and the canvas margin are set on `:root`, so
+canvas. The sidebar width and the canvas margin are set on `:root`, so
 they reach the toast region too, which sits outside the frame and
 uses them to stay centred on the canvas.
 

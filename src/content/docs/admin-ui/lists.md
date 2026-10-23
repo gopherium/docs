@@ -1211,9 +1211,11 @@ await startLocale(resolveLocale, [
 ```
 
 `listChromeCatalogFor` answers the catalogue for `es-ES`, and one
-with the [list date](#dates-in-a-list) words only for `fr-FR`. For
-any other language it answers `undefined`. French readers and those
-others keep the English chrome. Each catalogue is its own small
+for `fr-FR` with the loading words, the [list date](#dates-in-a-list)
+words and
+[godmin's own words](/admin-ui/framing-an-application/#godmins-own-words).
+For any other language it answers `undefined`. French readers and
+those others keep the English chrome. Each catalogue is its own small
 module, so a bundler loads it only for a reader who needs it.
 
 The Spanish one covers every word DataViews shows around a list: the

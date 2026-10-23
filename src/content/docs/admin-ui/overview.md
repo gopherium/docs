@@ -29,11 +29,11 @@ duplicates something the packages above already ship.
 
 | Entry point | Contents |
 | --- | --- |
-| `@gopherium/godmin` | `AdminRoot`, `Frame`, `Page`, `PageTitle`, `PageTabs`, `PageTab`, `SectionTitle`, `InitialsAvatar`, `NavScreen`, `ErrorNotice`, `LoadMore`, `LogList`, `LogItem`, `LogTime`, `LoadingScreen`, `LoadingRows`, `Toaster`, `useToaster`, `RepeatRows`, `RowControls`, `useRowKeys`, `keyFromLabel`, `listChromeCatalogFor`, `LIST_CHROME_DOMAIN`, `ListEmpty`, `ConfirmBody`, `RenameBody`, `FormBody`, `FileButton`, `useServerPaging`, `pageWindow`, `paginationOf`, `runEach`, `bulkNotes`, `useListRun`, `useBulkRun`, `RunConfirm`, `viewNarrows`, `offeredView`, `offeredSize`, `sizedView`, `useMediaQuery`, `useTokenDocument`, the breakpoints `RAIL_BREAKPOINT`, `EDGE_BREAKPOINT`, `DENSE_BREAKPOINT`, `SHEET_BREAKPOINT`, `TITLE_BREAKPOINT` and `SMALL_VIEWPORT`, `SUPPORTED_WPDS` |
+| `@gopherium/godmin` | `AdminRoot`, `Frame`, `Page`, `PageTitle`, `PageTabs`, `PageTab`, `SectionTitle`, `InitialsAvatar`, `NavigationScreen`, `MenuCount`, `ErrorNotice`, `LoadMore`, `LogList`, `LogItem`, `LogTime`, `LoadingScreen`, `LoadingRows`, `Toaster`, `useToaster`, `RepeatRows`, `RowControls`, `useRowKeys`, `keyFromLabel`, `listChromeCatalogFor`, `LIST_CHROME_DOMAIN`, `ListEmpty`, `ConfirmBody`, `RenameBody`, `FormBody`, `FileButton`, `useServerPaging`, `pageWindow`, `paginationOf`, `runEach`, `bulkNotes`, `useListRun`, `useBulkRun`, `RunConfirm`, `viewNarrows`, `offeredView`, `offeredSize`, `sizedView`, `useMediaQuery`, `useTokenDocument`, the breakpoints `HUGE_BREAKPOINT`, `SIDEBAR_BREAKPOINT`, `EDGE_BREAKPOINT`, `DENSE_BREAKPOINT`, `SHEET_BREAKPOINT`, `TITLE_BREAKPOINT` and `SMALL_VIEWPORT`, `SUPPORTED_WPDS` |
 | `@gopherium/godmin/base.css` | Cascade layer order, design tokens, host rules, frame and screen styles |
 | `@gopherium/godmin/dates` | `startListDates`, `listDate`, the only entry that loads `@wordpress/date` |
 | `@gopherium/godmin/dialogs` | `ConfirmDialog`, `FormDialog`, the only entry that loads `@wordpress/components`. Load `@wordpress/components/build-style/style.css` once in your app, as DataViews asks |
-| `@gopherium/godmin/router` | `useListView`, `listSearch`, `openOnTap`, `useCanvas`, `useFrameLocation`, the `canvas` route static data |
+| `@gopherium/godmin/router` | `Navigation`, `NavigationList`, `NavigationItem`, `DrilldownItem`, `useCanAccess` and the `MenuItem` type, `useListView`, `listSearch`, `openOnTap`, `useCanvas`, `useFrameLocation`, `routerDefaults`, the `canvas`, `Sidebar` and `capability` route static data |
 | `@gopherium/godmin/testing` | `installTestEnvironment`, `renderAdmin`, `setViewport` and its `TestViewport` type, `getAnnouncement`, `clearAnnouncements`, `assertElementPatched`, `WPDS_IGNORE_SELECTOR`, `textClasses`, `badgeClasses`, `buttonClasses`, `stubLayout` |
 | `@gopherium/godmin/vite` | `godminDedupe`, `godminSingleCopy`, `godminStylesheetFirst`, `duplicateCopies`, `hoistStylesheet` |
 | `@gopherium/godmin/stylelint` | The design system stylelint rules |
@@ -43,7 +43,9 @@ dependency is a package your application installs and pins itself.
 You stay in control of the exact design system versions you run,
 and godmin never redistributes them. From 0.13.0 that includes
 `@wordpress/icons`, which draws the arrows and the trash of
-`RowControls`.
+`RowControls`. From 0.25.0 it also includes `@wordpress/i18n`, which
+translates the few words godmin draws itself, such as Back in the
+sidebar.
 
 ## Setup
 
@@ -140,7 +142,7 @@ godmin is a TypeScript brick, unlike its Go siblings
 whose login and user screens are built from the same design system.
 
 Read [framing an application](/admin-ui/framing-an-application/)
-next for the layout. And read
+next for the layout and the sidebar menu. And read
 [build configuration](/admin-ui/build-and-versioning/) before your
 first build, because a duplicate package is much easier to avoid
 than to debug.

@@ -84,11 +84,12 @@ windows only. The other design system peers, `@wordpress/icons`,
 `@wordpress/a11y` and `@wordpress/style-runtime`, have their windows
 in the peer ranges of godmin's `package.json`.
 
-`@wordpress/date` and `@wordpress/i18n` are optional peers, needed
-only by `@gopherium/godmin/dates`. `@wordpress/components` is an
-optional peer too, needed only by `@gopherium/godmin/dialogs`, in the
-window `>=42.0.0 <43.0.0`. Install each one next to godmin when you
-use its entry. Load the components stylesheet once in your
+`@wordpress/i18n` is a required peer, because the main entry
+translates godmin's own words. `@wordpress/date` is an optional peer,
+needed only by `@gopherium/godmin/dates`. `@wordpress/components` is
+an optional peer too, needed only by `@gopherium/godmin/dialogs`, in
+the window `>=42.0.0 <43.0.0`. Install each one next to godmin when
+you use its entry. Load the components stylesheet once in your
 application, `@wordpress/components/build-style/style.css`, as
 DataViews already asks. godmin never imports it. Their windows are in
 the same peer ranges.
@@ -97,6 +98,32 @@ the same peer ranges.
 `>=20.0.0 <21.0.0`. No godmin entry imports it, but `offeredView`
 follows the filter rules of that DataViews release. A list built on
 another release gets a peer warning when it installs godmin.
+
+## Upgrading from godmin 0.24.0
+
+godmin 0.25.0 gives the sidebar parts the names WordPress gives them.
+TypeScript points at each old name, and
+[the changelog](https://github.com/gopherium/godmin/blob/main/CHANGELOG.md)
+lists every new one. Change your code in these places too:
+
+- Install `@wordpress/i18n` next to godmin, and take
+  `@tanstack/react-router` 1.170.44 or newer.
+- `NavigationScreen` draws its title as an `h1` and no longer moves
+  the focus to it. Pass `headingLevel={2}` to every `Page` beside it,
+  as [heading levels](/admin-ui/screens/#heading-levels) explains.
+- The sidebar and the drawer have no padding of their own. A sidebar
+  screen pads its rows.
+- A stylesheet that reads the sidebar width reads
+  `--godmin-nav-sidebar-width`.
+- A stylesheet that styles the sidebar slot or a sidebar screen reads
+  `.godmin-layout__sidebar` and the `.godmin-navigation-screen`
+  classes.
+- The phone menu button is named "Open navigation panel" by default.
+  A test that finds it by its old name, "Open navigation", finds it by
+  the new one.
+- `PageTabs` draws its tabs as a `ul` list, one `li` per tab, and its
+  `.godmin-page-tabs` class sits on that list. A stylesheet that
+  styles the tabs by the `nav` reads the list.
 
 ## Upgrading from godmin 0.22.0
 

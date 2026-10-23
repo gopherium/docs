@@ -59,14 +59,28 @@ The fade is a short opacity ramp with no delay, so the content
 starts appearing the moment it is ready. Together with the ghost's
 own fade, the swap reads as one motion.
 
+## Moving between pages
+
+A router can draw a loading screen while the next page loads.
+WordPress's new admin draws none. To do the same, spread
+[`routerDefaults()`](/admin-ui/framing-an-application/#routes-and-the-frame)
+into your router, and give it no `defaultPendingComponent` and no
+route a `pendingComponent`. Then:
+
+- The page on screen stays until the next one has its code and data.
+- A page starts to load when the pointer rests on its link or the
+  keyboard reaches it, so the wait is often over before the click.
+- A page that fetches its own data after it opens draws its ghost, as
+  above.
+
 ## Toasts
 
 A toast is a short message that says how something went, then
 removes itself. godmin draws it like the WordPress snackbar: a dark,
 slightly see-through box with white 13px text, 32px above the bottom
-edge. It sits at the center of the canvas, so beside the rail it
+edge. It sits at the center of the canvas, so beside the sidebar it
 lines up with your content, and it sits at the center of the window
-when no rail is on screen.
+when no sidebar is on screen.
 
 The numbers are the snackbar's own:
 
