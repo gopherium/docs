@@ -124,6 +124,9 @@ lists every new one. Change your code in these places too:
 - `PageTabs` draws its tabs as a `ul` list, one `li` per tab, and its
   `.godmin-page-tabs` class sits on that list. A stylesheet that
   styles the tabs by the `nav` reads the list.
+- `useUnsavedText` and `markLatest` came in 0.24.1 and come back in
+  0.27.0. 0.25.0 and 0.26.0 do not have them, so an app that uses them
+  on 0.24.1 moves straight to 0.27.0 or later.
 
 ## Upgrading from godmin 0.22.0
 

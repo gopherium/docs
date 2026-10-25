@@ -712,12 +712,12 @@ modal: a field that starts with the current name, an accent text
 Cancel and the submit button:
 
 ```tsx
-import { RenameBody, useToaster } from '@gopherium/godmin'
+import { RenameBody, markLatest, useToaster, useUnsavedText } from '@gopherium/godmin'
 import type { Action } from '@wordpress/dataviews'
 
 function useRenameAction(): Action<Post> {
 	const toaster = useToaster()
-	const [typed, setTyped] = useState<Post>()
+	const renames = useUnsavedText()
 	return useMemo<Action<Post>>(
 		() => ({
 			id: 'rename',
@@ -726,17 +726,20 @@ function useRenameAction(): Action<Post> {
 			modalFocusOnMount: 'firstContentElement',
 			RenderModal: ({ items: [post], closeModal }) => (
 				<RenameBody
-					name={typed?.id === post.id ? typed.title : post.title}
+					name={renames.get(post.id) ?? post.title}
 					fieldLabel="Name"
 					submitLabel="Save"
 					cancelLabel="Cancel"
 					onSubmit={(title) => {
 						closeModal?.()
-						setTyped(undefined)
+						renames.delete(post.id)
+						const stillLatest = markLatest(renames, post.id)
 						renamePost(post.id, title)
 							.then(() => toaster.show('Name updated.'))
 							.catch((failure) => {
-								setTyped({ ...post, title })
+								if (stillLatest()) {
+									renames.set(post.id, title)
+								}
 								toaster.show(failure.message)
 							})
 					}}
@@ -744,7 +747,7 @@ function useRenameAction(): Action<Post> {
 				/>
 			),
 		}),
-		[toaster, typed],
+		[toaster, renames],
 	)
 }
 ```
@@ -762,9 +765,20 @@ A rename closes the moment the reader presses Save, before its write,
 as WordPress closes its rename. So the body is never busy and never
 shows a failure. When the write fails, say so in a toast and keep
 what the reader typed. `name` is the text the field starts with, so
-hand that text back on the next open, as the example does with
-`typed`. The reader then finds the name they typed and can try once
-more.
+hand that text back on the next open. The reader then finds the name
+they typed and can try once more.
+
+`useUnsavedText` holds that text, by item id, for as long as the
+screen stays. Keep it in the hook that builds the action, never in the
+modal, which goes the moment the reader saves. Clear the item's text
+before each write, so a save that works leaves nothing behind.
+`markLatest` marks the write as the latest one sent to the item and
+returns a check. Keep the failed text only while the check holds, so
+an earlier save that fails late never overwrites what a later save
+sent, and a later save that works is never undone. The store holds
+any value, so a form with several fields keeps them all, as
+`useUnsavedText<Fields>()`. This needs godmin 0.24.1, or 0.27.0 or
+later. 0.25.0 and 0.26.0 do not have it.
 
 Every word comes from you: the field label, both button labels and
 the toasts. Pass them through your translations.
@@ -848,9 +862,9 @@ When the modal closes depends on the action, as in WordPress:
   Set `busy` while it runs, as the example does.
 
 Either way, a failure goes in a toast. `FormBody` never shows one. To
-give the reader back what they typed after a failure, keep it outside
-the modal and pass it in as the first value of the fields, as the
-rename does.
+give the reader back what they typed after a failure, keep it in a
+`useUnsavedText` store outside the modal and pass it in as the first
+value of the fields, as the rename does.
 
 Leave `modalSize` out, so the form takes the DataViews width, 560px,
 as WordPress row forms do. `modalFocusOnMount: 'firstContentElement'`
