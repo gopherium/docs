@@ -204,6 +204,18 @@ label, such as how many updates wait. Pass it as a row's `suffix`:
 - A screen reader reads `label` in place of the number, so pass a
   whole sentence in the reader's language.
 
+A `DrilldownItem` takes a `suffix` too, drawn before its chevron.
+When `Navigation` draws your rows from data, give the `MenuItem` a
+`count` instead and it draws the `MenuCount` for you:
+
+```ts
+const updates: MenuItem = {
+	label: 'Updates',
+	to: '/updates',
+	count: { value: 3, label: '3 updates available' },
+}
+```
+
 ## The canvas on a wide screen
 
 On a wide screen the canvas is a panel 16px from the top, right and
@@ -277,9 +289,10 @@ shows.
 
 `chromeColor` sets the theme color of the frame, and `canvasColor`
 the one of the canvas. Each accepts the same color values as the
-design system theme provider. Pass neither and the frame looks like
-WordPress: the chrome gets `{ background: '#26292b' }` and the
-canvas `{ background: '#fcfcfc' }`. Up to godmin 0.15.0 the frame
+design system theme provider. Pass neither and the frame takes
+godmin's dark chrome, `{ background: '#26292b' }`, and the design
+system's default light canvas, `{ background: '#fcfcfc' }`. Up to
+godmin 0.15.0 the frame
 set no colour of its own, so an application that passes none sees
 its frame change.
 

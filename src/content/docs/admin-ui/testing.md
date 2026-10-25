@@ -170,7 +170,8 @@ expect([...badge.classList]).toEqual(badgeClasses('none'))
 expect([...button.classList]).toEqual(buttonClasses('solid', 'compact'))
 ```
 
-They take the variant, the intent, and for a button the size.
+They take the variant, the intent, and for a button the size and the
+tone.
 
 ## Checking the element package on React 19
 

@@ -1119,7 +1119,7 @@ const view = { type: 'table', titleField: 'name', descriptionField: 'email', fie
 ```
 
 In a list page godmin sets the pair the way the WordPress subscriber
-list does. The title is 13px in the regular weight, and the
+list does. The title is 13px and bold, and the
 description is a 12px muted line 4px under it. A row with both is
 64px tall. A title on its own stays centered in a 32px line, level
 with the other cells of its row.
@@ -1187,13 +1187,13 @@ a picture, so no address leaves your application.
 Some lists cannot be DataViews, such as a list the user orders by
 hand with arrows. Keep those a `godmin-table`. It looks like the
 DataViews table: 13px text on 20px lines, small capital headers, 12px
-of padding in every cell, rows as tall as the DataViews rows, and a
+of padding in every cell but only 8px above and below a header,
+rows as tall as the DataViews rows, and a
 light line between rows. Rows also tint under the pointer and while
 keyboard focus is inside them, which DataViews does not do.
 
 Mark the cell that names the record `godmin-table__title`. It draws
-the name bold, and in the regular weight inside a list page, where
-the DataViews titles are regular too. A link inside it has no
+the name bold, as DataViews draws its titles. A link inside it has no
 underline and turns the accent colour under the pointer, like a
 DataViews title field:
 

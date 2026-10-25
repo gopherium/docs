@@ -356,7 +356,7 @@ every admin screen runs into:
 | `godmin-empty` | A centered empty state with breathing room |
 | `godmin-table` | A full width table with collapsed borders, 13px text on 20px lines |
 | `godmin-table__actions` | The narrow trailing cell holding row actions |
-| `godmin-table__title` | The cell naming the record, bold, regular on a list page, its link with no underline |
+| `godmin-table__title` | The cell naming the record, bold, its link with no underline |
 | `godmin-table-scroll` | The box a wide table scrolls inside |
 | `godmin-list` | The box around a DataViews list inside a page section, lining its search and cells up with the text around it |
 | `godmin-list-overlay` | An element laid over a list region, such as a drop zone, set after the list |

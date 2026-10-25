@@ -69,9 +69,10 @@ fallback values.
 ## Design system versions
 
 Each godmin release supports one design system window, written out
-in full in its peer ranges, for example `>=0.23.0 <0.24.0`. The
-window moves forward with the design system and never widens, so no
-release accepts two incompatible generations at once.
+in full in its peer ranges as the first version it accepts and the
+first one it refuses, such as `>=0.24.0 <0.25.0`. The window moves
+forward with the design system and never widens, so no release
+accepts two incompatible generations at once.
 
 The window is exported for your tests:
 
