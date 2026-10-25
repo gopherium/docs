@@ -176,7 +176,8 @@ The codes authkit can answer with:
 | `role_insufficient` | The role may not use this route |
 | `capability_missing` | The role lacks the capability, `meta.capability` names it |
 | `role_unknown` | No role source declares the role, `meta.field` is `role` |
-| `role_beyond_reach` | The actor may not hand out that role or change that account, or the account to enable holds no declared role |
+| `user_not_editable` | The actor may not change that account |
+| `role_not_grantable` | The actor may not hand out that role, or the account to enable holds no declared role |
 | `role_changed` | The account's role changed before the write landed |
 | `body_malformed` | The request body is not valid JSON |
 | `body_too_large` | The request body is over the cap |

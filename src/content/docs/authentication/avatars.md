@@ -1,6 +1,6 @@
 ---
 title: Avatars
-description: Building an account's avatar address on the server, as a drawn initial or a Gravatar picture, the way WordPress does.
+description: Building an account's avatar address on the server, as a drawn initial or a Gravatar picture, the way WordPress does, and sending it with every listed account.
 ---
 
 An avatar is the small round picture beside an account's name. The
@@ -50,3 +50,14 @@ do not know is refused with an error that names it. `ParseSize` reads
 a size from a request. It keeps 1 to 2048 pixels, Gravatar's own
 limit, and gives 96 for an empty value, as WordPress does. `Address`
 brings any other size to the nearest bound.
+
+## On the users list
+
+authkit's admin handlers build the same address for every account they
+list. Pass your options as `AdminConfig.Avatars` and the size as
+`AdminConfig.AvatarSize`, and each account in `GET /api/users` carries
+an `avatar` field, as
+[User administration](/authentication/user-administration/#avatars-on-listed-accounts)
+explains. In `off` mode, or with no options, the field is left out.
+Pass the options your other screens use, so a person's picture is the
+same on the users list as everywhere else.

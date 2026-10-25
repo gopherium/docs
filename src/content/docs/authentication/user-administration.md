@@ -1,6 +1,6 @@
 ---
 title: User administration
-description: Listing, creating, promoting and disabling accounts, sweeping expired sessions, and bootstrapping the first admin.
+description: Listing, creating, promoting and disabling accounts, telling a screen which accounts it may edit, sweeping expired sessions, and bootstrapping the first admin.
 ---
 
 Administration is the part of authentication most apps re-type worst:
@@ -17,6 +17,8 @@ admin := authkit.NewAdmin(authkit.AdminConfig{
 	Store:      store,
 	Privileged: gouncer.Roles{"admin"},
 	Roles:      registry,
+	Avatars:    &avatar.Options{Mode: avatar.ModeInitials},
+	AvatarSize: 96,
 })
 
 mux.Handle("GET /api/users", auth.RequireSession(http.HandlerFunc(admin.List)))
@@ -36,7 +38,9 @@ Leave `Privileged` empty and every signed-in account is admitted, which
 is how an application behaves before it adopts roles. `Roles` is
 optional, a role registry that checks every role the routes write, as
 [Checking roles against a registry](#checking-roles-against-a-registry)
-explains.
+explains. `Avatars` and `AvatarSize` are optional too, and give each
+listed account its picture, as
+[Avatars on listed accounts](#avatars-on-listed-accounts) explains.
 
 The handlers read the target id from `r.PathValue("id")`, so they work
 on the standard mux and on routers that populate path values.
@@ -78,9 +82,10 @@ privileged.Holds("")       // false, an account with no role is never privileged
 A new account starts under the role the create request names, and
 `PUT /api/users/{id}/role` changes it. Both take the role as plain
 text in a `role` field. The role reaches the browser on every listed
-account and on the session, so a screen can hide what the signed-in
-account cannot do. Hiding is a convenience for the reader. Refusing
-the write below is the enforcement.
+account and on the session, and each listed account also says whether
+the signed-in account may edit it, so a screen can hide what the
+signed-in account cannot do. Hiding is a convenience for the reader.
+Refusing the write below is the enforcement.
 
 The admin routes answer these error codes. Each comes with a message
 in English, and the code is the part a client should match on:
@@ -89,11 +94,18 @@ in English, and the code is the part a client should match on:
 | --- | --- | --- |
 | `role_insufficient` | 403 | The actor holds no privileged role |
 | `role_unknown` | 422 | No role source declares the role, `meta.field` is `role` |
-| `role_beyond_reach` | 403 | The actor does not outrank the role or the account's current role, or the account to enable holds no role or an undeclared one |
+| `user_not_editable` | 403 | The account's current role carries a capability the actor's role lacks |
+| `role_not_grantable` | 403 | The role handed out carries a capability the actor's role lacks, or the account to enable holds no role or an undeclared one |
 | `role_changed` | 409 | The account's role changed before the write landed |
 | `self_disable_refused` | 422 | An account disabling itself |
 | `self_role_refused` | 422 | An account changing its own role |
 | `last_privileged_refused` | 422 | A change that would leave no enabled privileged account |
+
+The two codes follow WordPress's REST API, which splits
+`rest_cannot_edit` from `rest_user_invalid_role` the same way. Their
+messages are WordPress's own sentences: "Sorry, you are not allowed to
+edit this user." and "Sorry, you are not allowed to give users that
+role."
 
 ## Checking roles against a registry
 
@@ -105,13 +117,15 @@ every role they write:
 - A role the registry does not know gets a 422 with the code
   `role_unknown`. So does an empty role, because `EnsureAdmin` and
   `account:grant-role` give a role to accounts holding none.
-- An actor may hand out only a role its own role outranks, meaning it
-  carries every capability that role carries. It may also change or
-  disable only an account whose current role it outranks. Anything
-  else gets a 403 with the code `role_beyond_reach`.
+- An actor may change or disable an account holding a declared role
+  only when its own role outranks that role, meaning it carries every
+  capability that role carries. Any other such account gets a 403 with
+  the code `user_not_editable`, whatever the write.
+- An actor may hand out only a role its own role outranks. Any other
+  declared role gets a 403 with the code `role_not_grantable`.
 - An account that holds no role, or one no source declares any more,
   such as one from a removed plugin, can still be given a new role or
-  disabled. Enabling it gets a 403 with the code `role_beyond_reach`
+  disabled. Enabling it gets a 403 with the code `role_not_grantable`
   until it holds a declared role.
 - The write lands only if the account still holds the role that was
   checked. If another admin changed it in between, the write gets a
@@ -119,6 +133,53 @@ every role they write:
 
 Give your administrator role every capability your plugins add.
 Otherwise it cannot hand out their roles.
+
+## Which accounts the reader may edit
+
+Every listed account carries `editable`. It is true when the reader may
+change or disable that account, by the same rule the writes use: the
+account holds no role or one no source declares, or the reader's role
+carries every capability of the account's role. Without a role
+registry every account is editable.
+
+```json
+{
+  "id": "01920c3e-7a4b-7c1d-9f2e-3b5a6c7d8e9f",
+  "email": "maria.perez@example.com",
+  "name": "Maria Perez",
+  "disabled": false,
+  "confirmed": true,
+  "role": "editor",
+  "created_at": "2026-10-25T09:00:00Z",
+  "editable": true,
+  "avatar": "data:image/svg+xml;base64,PHN2Zy..."
+}
+```
+
+The reader's own account is editable too, since a role carries every
+capability of itself. The self guards still refuse a change to your own
+role and a disable of your own account, so a screen also compares the
+account's `id` with the session's.
+
+An account created through `POST /api/users` comes back with
+`editable` and `avatar` as well, so a screen can add it to its list
+without reading the list again.
+
+## Avatars on listed accounts
+
+Set `AdminConfig.Avatars` and every listed account carries `avatar`,
+the address the [`avatar`](/authentication/avatars/) package builds
+from the account's name and email. The options are the ones your
+application reads from its own settings. `AvatarSize` is the size in
+pixels, 96 when you leave it at zero. Draw at twice the size a screen
+shows, so the picture stays sharp on dense screens.
+
+Leave `Avatars` nil, or set its mode to `off`, and no account carries
+an `avatar` field at all. A screen can then draw a letter from the
+name, or nothing.
+
+`NewAdmin` copies the options, so changing your own value afterwards
+changes nothing. Build a new `AdminHandlers` to change them.
 
 ## The seams under the admin handlers
 
@@ -128,19 +189,26 @@ request involved:
 
 | Seam | Answers |
 | --- | --- |
-| `admin.ListAccounts(ctx)` | Every `Account`, ordered for display |
-| `admin.CreateAccount(ctx, email, name, password, role)` | The created `Account` |
+| `admin.ListAccounts(ctx)` | Every `Account`, ordered for display, with `Editable` judged for the reader in `ctx` |
+| `admin.CreateAccount(ctx, email, name, password, role)` | The created `Account`, judged the same way |
 | `admin.SetAccountDisabled(ctx, actorID, id, disabled)` | An error, or nil |
 | `admin.SetAccountRole(ctx, actorID, id, role)` | An error, or nil |
 | `admin.SetAccountDisabledFrom(ctx, actorID, id, held, disabled)` | An error, or nil |
 | `admin.SetAccountRoleFrom(ctx, actorID, id, held, role)` | An error, or nil |
 
 `Account` is the administrative view of a user: `ID`, `Email`,
-`Name`, `Disabled`, `Confirmed`, `Role` and `CreatedAt`. It carries
-no password field at all, so a listing cannot leak a hash.
-`Confirmed` is false for an invited account until the person
-activates it, which is how a screen tells a pending invitation from
-an active account.
+`Name`, `Disabled`, `Confirmed`, `Role`, `CreatedAt`, `Editable` and
+`Avatar`. It carries no password field at all, so a listing cannot
+leak a hash. `Confirmed` is false for an invited account until the
+person activates it, which is how a screen tells a pending invitation
+from an active account.
+
+`ListAccounts` and `CreateAccount` read the reader from the
+`Identity` in the context, which `RequireSession` puts there. Outside
+a request, put one there yourself with `authkit.WithIdentity`. With
+none, the reader holds no role. With a role registry, only accounts
+whose role carries no capability, or that hold no declared role, are
+then editable.
 
 `SetAccountDisabled`, `SetAccountRole` and their `From` twins take
 two ids: `actorID` is whoever is making the change, and `id` is the
@@ -166,8 +234,8 @@ cover. The HTTP handlers translate it to `last_privileged_refused`.
 With a role registry, `CreateAccount`, `SetAccountRole` and
 `SetAccountRoleFrom` also refuse an unknown or empty role with
 `authkit.ErrUnknownRole`. They take no acting role, so they never
-check reach. A caller acting for an account asks the registry's
-`Outranks` first.
+check whether an actor may edit the account or give the role. A caller
+acting for an account asks the registry's `Outranks` first.
 
 The two seams ending in `From` are the ones the routes call. Call
 them too from your own code that changes accounts outside HTTP.
@@ -178,9 +246,10 @@ you checked it. With a role registry they refuse in two cases:
   `authkit.ErrRoleChanged`.
 - `SetAccountDisabledFrom` would enable an account whose `held` role
   is empty or one the registry does not declare. It returns
-  `authkit.ErrBeyondReach`.
+  `authkit.ErrRoleNotGrantable`.
 
-Like the other seams, they never check reach. For an acting account,
+Like the other seams, they never check whether an actor may edit the
+account or give the role. For an acting account,
 ask the registry's `Outranks` about `held` first, and for
 `SetAccountRoleFrom` about the new role too. Without a role registry
 they work like `SetAccountDisabled` and `SetAccountRole`.
