@@ -109,6 +109,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Files',
+					items: [{ slug: 'files/postgres' }],
+				},
+				{
 					label: 'Testing',
 					items: [
 						{ slug: 'testing/end-to-end' },
