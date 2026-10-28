@@ -8,18 +8,24 @@ is the browser half of the authentication stack. It calls the
 [authkit endpoints](/authentication/sessions-over-http/) for you and
 gives your React application everything around a login.
 
-It ships four entry points, so you take only the layers you want:
+It ships five entry points, so you take only the layers you want:
 
 | Entry | Contents |
 | --- | --- |
 | `@gopherium/react-auth` | The core: gate, hooks, backend calls, typed errors, transport |
 | `@gopherium/react-auth/wpds` | Ready-made screens on the WordPress Design System |
+| `@gopherium/react-auth/wpds/users` | The Users page on WordPress DataViews |
 | `@gopherium/react-auth/admin` | The user administration calls |
 | `@gopherium/react-auth/testing` | Test harness, canned responses, session seeding |
 
 `react` and `@tanstack/react-query` are peer dependencies, meaning
 your application installs them. The `/wpds` entry also expects
-`@wordpress/ui`, and `@wordpress/icons` 18.x for its Users row.
+`@wordpress/ui`, and `@wordpress/icons` 18.x for its Users row. The
+`/wpds/users` entry also expects `@gopherium/godmin` 0.28.x,
+`@gopherium/gottext` 0.6 or 0.7, `@wordpress/dataviews` 20.x,
+`@wordpress/components` 42.x and `@wordpress/date` 5.57 or a later
+5.x. It is an entry of its own, so an application that only signs
+people in never installs those.
 
 ## The gate
 
@@ -93,19 +99,20 @@ entry has every screen a login needs already built:
 - `LoginScreen`, which takes a `brand` prop and an optional
   `onForgotPassword` that shows "Lost your password?" under the card
 - `AccountPanel`, showing who is signed in with a logout control
-- `UsersScreen` and `NewUserScreen` for user administration
 - `SetPasswordScreen` for the person accepting an invitation
 - `RequestResetScreen` and `ResetPasswordScreen` for a forgotten
   password
 - `SetupCodeStep` and `SetupAccountStep` for a new site's first
   account
+- `PasswordField` with `usePasswordField`, the account step's
+  password row for your own forms
 - `usersMenuItem`, the Users row for your sidebar menu
+- `UsersPage` in `/wpds/users`, the list of accounts with what an
+  administrator may do to each
 
 None of them know your router, and they stay that way by handing
-navigation back to you. `UsersScreen` takes `newUserRender`, an
-element to use as its create link, so you supply your own link
-component. `NewUserScreen` calls `onCreated` when the invitation is
-handled, and your application decides where to go next.
+navigation back to you. `UsersPage`, for example, takes `addLink`, a
+link element from your router, for its Add User button.
 
 Import the stylesheet once:
 
@@ -132,10 +139,107 @@ manage users, name the capability on your `/users` route:
 createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/users',
-	staticData: { capability: 'users.manage' },
-	component: UsersPage,
+	staticData: { capability: 'manage_users' },
+	component: Users,
 })
 ```
+
+### The Users page
+
+`UsersPage` is a Users screen modelled on WordPress's, built on
+[DataViews](/admin-ui/lists/), the WordPress list component. It shows
+each account with its avatar, its email under its name, its status,
+its role and when it was created. A reader can search, filter by role
+or status, sort by name, email or date, and page through the accounts.
+
+Your application keeps the view, meaning the search, the filters,
+the sort and the page, in its address with godmin's
+[`useListView`](/admin-ui/lists/#the-view-in-the-address). It hands
+the page the result:
+
+```tsx
+import { useListView, listSearch } from '@gopherium/godmin/router'
+import { UsersPage, usersListDefaults } from '@gopherium/react-auth/wpds/users'
+
+function Users() {
+	const list = useListView<View>(usersListDefaults({ perPage: settings?.pageSize }))
+	return (
+		<UsersPage
+			list={list}
+			pageSizes={settings?.pageSizes}
+			sizesFailed={settingsFailed}
+			roleLabels={{ admin: __('Administrator'), member: __('Member') }}
+			addLink={<Link to="/users/new" />}
+			headingLevel={2}
+		/>
+	)
+}
+```
+
+`settings` and `settingsFailed` stand for your own settings query.
+An application with no page size setting passes a fixed size, such
+as `usersListDefaults({ perPage: 20 })`. The list shows as loading
+until it has a page size or `sizesFailed` is true.
+
+Give the `/users` route `validateSearch: listSearch`, so a reload or
+a shared link opens the same view. The page needs godmin's
+[`Toaster`](/admin-ui/loading-and-feedback/#toasts) above it, and
+your application loads the `@wordpress/dataviews` and
+`@wordpress/components` stylesheets, as for any DataViews list.
+
+Each row offers Change role…, Enable or Disable, and Resend
+invitation… on an account still waiting to activate. Change role,
+Enable and Disable also work on several ticked accounts from the bar
+under the list. A click on a name, or a tap on a phone row, opens
+Change role. The page never offers anything on the reader's own row,
+nor on an account the server marks `editable: false`, so the server's
+rule decides what each reader sees. Change role also needs the
+session's `grantable` roles, and Enable needs the account's role among
+them.
+
+Change role, Enable and Disable report in one toast, however many
+accounts they touched. A toast about one account shows its full
+name, never cut short, as WordPress does. A refused write shows the
+sentence for the error code the server answered, WordPress's own
+wherever WordPress has one. For `user_not_editable` that is "Sorry,
+you are not allowed to edit this user."
+
+Everything the page takes is data:
+
+| Prop | What it is |
+| --- | --- |
+| `list` | What godmin's `useListView` returns |
+| `pageSizes`, `sizesFailed` | The page sizes your settings offer, and whether the settings failed to load. When they fail, every account shows on one page |
+| `roleLabels` | The label of each role your application declares. A role with no label reads as its stored name with a capital first letter |
+| `errorMessages` | Words for error codes only your transport answers, keyed by code |
+| `addLink` | The link element the "Add User" button goes in |
+| `tabs`, `headingLevel` | Tabs under the header, and the level of the title |
+| `showAvatars` | `false` when your site shows no avatars, so the page draws none |
+| `columns` | Extra columns after Role, see below |
+
+A column comes in as data too. Give it an `id`, a `label` and
+`cells`, one per account id. A cell holds the `text` to show,
+optional `hidden` words a screen reader hears in its place, and an
+optional `link` element the text goes in. Pass the column's id to
+`usersListDefaults` as well, so the list shows it:
+
+```tsx
+const posts: UsersColumn = {
+	id: 'posts',
+	label: 'Posts',
+	cells: { [account.id]: { text: '3', hidden: '3 posts by this author', link: <Link to="/posts" search={{ author: account.id }} /> } },
+}
+
+const list = useListView<View>(usersListDefaults({ perPage: 20, columns: ['posts'] }))
+<UsersPage list={list} columns={[posts]} />
+```
+
+On a phone the list opens without your column. When a reader turns
+it on there, it shows as plain text, since the whole row is one button.
+
+`RoleSelect` is the role menu the page uses, with the role holding the
+fewest capabilities first, as WordPress lists roles. Use it in your own
+Add User page with the session's `grantable` roles.
 
 ### Setting up the first account
 
@@ -143,8 +247,10 @@ A brand new site has no account, so whoever reaches it first could
 claim it. The server stops that with a setup code, a one-time code it
 writes to a file only the site's owner can open.
 [The first account](/authentication/first-account/) covers the server
-side. That side needs `authkit` 0.22.0 or newer. On an older backend
-the setup routes answer 404, so `isSetupOpen()` throws.
+side. That side needs `authkit` 0.24.0 or newer. Before 0.22.0 the
+setup routes answer 404, so `isSetupOpen()` throws. On 0.22.0 and
+0.23.0 the account is made, but the step cannot read the answer and
+shows an error.
 
 In the browser, two screens take turns:
 
@@ -229,21 +335,66 @@ The strength meter uses zxcvbn, a password strength library of about
 first time the step renders. Your bundler may warn that the chunk is
 large. That warning is expected.
 
+### A password field for your own forms
+
+The account step's Password row also ships on its own, for any form
+that sets a password, such as your Add User page.
+`usePasswordField` holds the password and what the strength meter
+says about it. `PasswordField` draws it.
+
+```tsx
+const password = usePasswordField({ length: 24, userInputs: [name, email] })
+
+<PasswordField password={password} generateFirst labelPosition="top" readOnly={sending} />
+```
+
+- `length` is how many characters each generated password has. The
+  field starts with a generated password. WordPress makes 24 on its
+  Add User screen and 18 in its installer.
+- `userInputs` lists the values the meter treats as easy to guess,
+  usually the name and email typed next to the field.
+- `generateFirst` puts a "Generate password" button before the field,
+  as WordPress's Add User screen does. Each press puts a new password
+  in and shows it.
+- `labelPosition` places each label, with the names DataForm,
+  WordPress's form component, uses. `side`, the default, puts it
+  beside the field, as the installer's rows do. `top` puts it above
+  the field, as a godmin form does, so the field lines up in an Add
+  User form.
+- `readOnly` keeps the password and the weak password tick as they
+  are, for example while the form is being sent.
+- `help` is a line under the field. The account step puts its line
+  asking the person to store the password there.
+
+Send `password.value`. `password.ready` turns true once the field
+holds more than spaces and, for a weak password, the person has
+ticked "Confirm use of weak password". Use it to turn your submit
+button on. Call `password.mask(true)` when you send. It hides the
+password again, so a password manager offers to save it.
+
 ## Invitations and password resets
 
 Since 0.8.0 the package covers how an account starts and how a lost
 password comes back. The server side of both is
 [invites and resets](/authentication/invites-and-resets/), served by
-`authkit` 0.12.0 or newer. On an older backend the new screens get a
-404, while everything else on this page keeps working.
+`authkit` 0.12.0 or newer. On an older backend the invitation and reset
+screens get a 404.
 
-An account starts with an invitation. An administrator fills in
-`NewUserScreen` with an email and a name, and the server mails an
-activation link. No password is typed by the administrator, which is
-the point: only the invited person ever knows it. When the server has
-no mail set up, the screen shows the activation link read-only so the
-administrator can deliver it by hand. Either way the answer never
-reveals whether the address already had an account.
+An account starts with an invitation. Your Add User page calls
+`invite` from `/admin` with an email, a name and optionally a role,
+and the server mails an activation link. No password is typed by the
+administrator, which is the point: only the invited person ever knows
+it. When the server has no mail set up, `invite` answers with the
+activation link instead. Show it read-only so the administrator can
+deliver it by hand. Either way the answer never reveals whether the
+address already had an account.
+
+Resend invitation… on the Users page opens a dialog that sends a new
+link to an account still waiting. The link sent before stops
+working. When the server has no mail set up, the dialog shows the
+new link for the administrator to deliver by hand. No released
+`authkit` serves this call yet, as
+[the transport section](#talking-to-a-backend-that-is-not-rest) explains.
 
 The activation link lands on your route holding `SetPasswordScreen`:
 
@@ -300,19 +451,21 @@ configureAuthTransport({
 Everything above this line keeps working unchanged. The screens, the
 gate, the hooks and the query keys never know the requests moved.
 
-There are fifteen operations in the `AuthTransport` interface:
+There are sixteen operations in the `AuthTransport` interface:
 `fetchSession`, `login`, `logout`, `isSessionRevoked`, `fetchUsers`,
 `createUser`, `setUserDisabled`, `setUserRole`, `invite`,
-`acceptInvite`, `requestPasswordReset`, `resetPassword`, and the
-setup calls `isSetupOpen`, `checkSetupCode` and `createFirstAccount`.
-You override the ones you want and the rest keep using REST, which
-makes a gradual migration possible. Calls to `configureAuthTransport`
-add up rather than replace each other, so you can configure in more
-than one place.
+`resendInvite`, `acceptInvite`, `requestPasswordReset`,
+`resetPassword`, and the setup calls `isSetupOpen`, `checkSetupCode`
+and `createFirstAccount`. You override the ones you want and the rest
+keep using REST, which makes a gradual migration possible. Calls to
+`configureAuthTransport` add up rather than replace each other, so you
+can configure in more than one place.
 
-The three setup calls are new in 0.14.0. If your code builds a
-complete `AuthTransport` object, add the three calls to it. A
-transport that overrides only some calls needs no change.
+`resendInvite` is new in 0.16.0. If your code builds a complete
+`AuthTransport` object, add it. A transport that overrides only some
+calls needs no change. Its REST default sends `{ email }` to
+`POST /api/users/invite/resend`, which no released `authkit` serves
+yet.
 
 ### Matching the error contract
 
@@ -328,8 +481,9 @@ turns a wrong password into a crash instead of a form message.
 | `login` | Throw `InvalidCredentialsError` for a bad password, `RateLimitedError` when the limiter refuses |
 | `fetchUsers` | Throw `UnauthorizedError` when the session is gone |
 | `createUser` | Throw `UnauthorizedError`, `EmailTakenError` for a duplicate email, `ValidationError` for bad input |
-| `setUserDisabled` | Throw `UnauthorizedError` when the session is gone |
+| `setUserDisabled` | Throw `UnauthorizedError` when the session is gone, and the errors [Roles in the admin functions](#roles-in-the-admin-functions) lists for it |
 | `invite` | Answer `{ delivered: true }` or `{ delivered: false, activation_link }`, the same shape whether the address is taken or fresh. Throw `ValidationError` for bad input, never `EmailTakenError` |
+| `resendInvite` | Answer the same shape as `invite`. Throw `UnauthorizedError`, `RateLimitedError`, `UserNotEditableError` for an account the reader may not edit, `ValidationError` for bad input |
 | `acceptInvite` | Return the signed-in user. Throw `InvalidTokenError` for a spent, expired or unknown link |
 | `requestPasswordReset` | Answer nothing about the address. Throw `RateLimitedError` when the limiter refuses |
 | `resetPassword` | Throw `InvalidTokenError` for a dead link, `ValidationError` for a refused password |
@@ -337,18 +491,24 @@ turns a wrong password into a crash instead of a form message.
 | `checkSetupCode` | Resolve without spending the code. Throw `SetupCodeError` for a refused code, `SetupClosedError` once the site has an account, `RateLimitedError` when the limiter refuses, `SiteStartingError` while the site starts |
 | `createFirstAccount` | Return the created account. Throw the same errors as `checkSetupCode`, and `ValidationError` for a refused field |
 
-If your server checks roles, the four admin writes also throw
-`RoleUnknownError` and `RoleBeyondReachError`, as
-[Roles in the admin functions](#roles-in-the-admin-functions) lists.
+If your server checks roles, the admin writes also throw
+`RoleUnknownError`, `UserNotEditableError` and `RoleNotGrantableError`,
+as [Roles in the admin functions](#roles-in-the-admin-functions) lists.
+
+Every error class of `/admin` except `ValidationError` carries the
+server's code as `code`, such as `user_not_editable` on a
+`UserNotEditableError`. The class sets it, so your transport throws
+`new UserNotEditableError(message)` and passes nothing more. A screen
+looks the code up to choose its words.
 
 The setup steps show their own sentence for each error in the
 `checkSetupCode` and `createFirstAccount` rows. Two of the errors
 carry details the steps read. A `SetupCodeError` carries a `reason`:
 `invalid` for a wrong code, `expired` for a code past its lifetime,
 or `file` when the server cannot use the code file. A
-`ValidationError` from `createFirstAccount` carries the server's
-`code` and `meta`. In your own transport, build it as
-`new ValidationError(message, { code, meta })`.
+`ValidationError` from `createFirstAccount`, `createUser` or `invite`
+carries the server's `code` and `meta`. In your own transport, build
+it as `new ValidationError(message, { code, meta })`.
 
 The account step knows the codes `email_invalid`, `name_required`,
 `name_too_long`, `password_too_short` and `password_too_long`. For a
@@ -360,9 +520,10 @@ prop that returns your own words.
 `InvalidCredentialsError`, `RateLimitedError`, `UnauthorizedError`,
 `InvalidTokenError`, `SetupCodeError`, `SetupClosedError` and
 `SiteStartingError` come from the main entry point.
-`EmailTakenError`, `ValidationError` and the role errors come from
-`/admin`, and `ValidationError` is also exported from the main entry
-point.
+`EmailTakenError`, `ValidationError` and the errors in
+[Roles in the admin functions](#roles-in-the-admin-functions) come
+from `/admin`, and `ValidationError` is also exported from the main
+entry point.
 
 The `invite` answer is checked, not trusted. A custom transport that
 answers `delivered: false` without an activation link is treated as a
@@ -395,40 +556,67 @@ belongs in a `beforeEach`.
 ## Roles in the admin functions
 
 The `/admin` entry lists, creates and changes accounts. Each listed
-`User` carries a `role`. `createUser` takes an optional `role` for
-the new account, and `setUserRole(id, role)` changes one.
+`User` carries a `role`, `confirmed` and `editable`. `confirmed` is
+false until the person sets a password from an invitation. `editable`
+says whether the signed-in account may change it. When the server
+sends one, `avatar` is the address of its picture. `confirmed` and
+`editable` are required from 0.16.0, so the server must be `authkit`
+v0.24.0 or newer, or your transport must send both. `createUser`
+takes an optional `role` for the new account, and
+`setUserRole(id, role)` changes one.
 
-`setUserRole` calls `PUT /api/users/{id}/role`. A backend on `authkit`
-v0.8.0 or older names that write `rank`, so it answers 404 until you
-upgrade it too.
+`setUserRole` calls `PUT /api/users/{id}/role`.
 
-A role change can be refused six ways, and each is a typed error
-a screen can catch:
+A role change can be refused eight ways, and each is a typed error a
+screen can catch:
 
-| Error | The server said |
-| --- | --- |
-| `RoleRefusedError` | The signed-in account may not change roles |
-| `SelfRoleError` | An account tried to change its own role |
-| `LastPrivilegedError` | It would remove the last administrator |
-| `RoleUnknownError` | No role registry declares that role |
-| `RoleBeyondReachError` | The signed-in account may not hand out that role, or change that account |
-| `RoleChangedError` | The account's role changed before the write landed, so reload it |
+| Error | Code | The server said |
+| --- | --- | --- |
+| `RoleRefusedError` | `role_insufficient` | The signed-in account may not change roles |
+| `SelfRoleError` | `self_role_refused` | An account tried to change its own role |
+| `LastPrivilegedError` | `last_privileged_refused` | It would remove the last administrator |
+| `RoleUnknownError` | `role_unknown` | No role registry declares that role |
+| `UserNotEditableError` | `user_not_editable` | The signed-in account may not edit that account |
+| `RoleNotGrantableError` | `role_not_grantable` | The signed-in account may not hand out that role |
+| `RoleChangedError` | `role_changed` | The account's role changed before the write landed, so reload it |
+| `UserNotFoundError` | `user_not_found` | No account has that id any more |
 
-`createUser`, `invite` and `setUserDisabled` throw `RoleUnknownError`
-and `RoleBeyondReachError` as well, and `setUserDisabled` throws
-`RoleChangedError` too. `RoleUnknownError` is also a `ValidationError`, so a form that
-shows validation messages shows it too.
+`createUser`, `invite` and `resendInvite` throw `RoleUnknownError`,
+`UserNotEditableError` and `RoleNotGrantableError` as well.
+`setUserDisabled` throws those too, along with `RoleChangedError`,
+`UserNotFoundError`, `LastPrivilegedError` and `RoleRefusedError`. It
+throws `SelfDisableError` (`self_disable_refused`) when an account
+tries to disable itself. `RoleUnknownError` is also a
+`ValidationError`, so a form that shows validation messages shows it
+too.
 
-Ask `can(user, 'users.manage')` from your screens, never compare role
+0.16.0 removes `RoleBeyondReachError`. `authkit` v0.24.0 splits its
+code `role_beyond_reach` in two, `user_not_editable` and
+`role_not_grantable`, as WordPress's REST API does.
+
+Ask `can(user, 'manage_users')` from your screens, never compare role
 names. Build a role menu from the session user's `grantable` list,
 which arrives when the server's source answers `Grantable`.
 
+An Add User form can show an error from `createUser` under the field
+it is about. `fieldError(error)` from `/admin` answers
+`{ field, message }`, where `field` is `email`, `name` or `password`.
+It knows the codes `email_taken`, `email_invalid`, `name_required`,
+`name_too_long`, `password_too_short` and `password_too_long`, and
+reads the shortest length allowed from `meta.min`. For any other
+error it answers `undefined`, so show that error somewhere else, such
+as a toast.
+
+`errorMessageOf(error, errorMessages, fallback)` from `/wpds/users`
+gives the words the Users page would show for that error, or
+`fallback` when there are none.
+
 ## Languages
 
-Every string the package renders is translatable. It ships a Spanish
-catalogue and reads the text domain `DOMAIN`. Load the catalogue for
-the reader's language once at startup, with the same `@wordpress/i18n`
-copy your application uses:
+Every string the package renders is translatable. It ships Spanish
+(`es-ES`) and French (`fr-FR`) catalogues and reads the text domain
+`DOMAIN`. Load the catalogue for the reader's language once at
+startup, with the same `@wordpress/i18n` copy your application uses:
 
 ```ts
 import { setLocaleData } from '@wordpress/i18n'
@@ -444,6 +632,10 @@ if (catalog !== undefined) {
 not ship, and the screens stay in English. `@wordpress/i18n` is a
 required peer, and your bundler must resolve exactly one copy of it,
 or the package translates into a copy your application never loaded.
+
+Where WordPress already translates the same English, both catalogues
+use WordPress's words. The other translations are marked fuzzy,
+meaning no translator has reviewed them yet. They still show.
 
 ## Testing components that authenticate
 
@@ -473,7 +665,17 @@ most tests sign in as. It holds no role. `userWithRole('editor')` cans an accoun
 role, with its own stable id, so a test can walk both sides of a gate.
 `userWithCapabilities('editor', ['posts.edit'], ['author'])` cans one
 that also carries capabilities and the roles it may hand out.
-`roleOk()` answers a role change with success.
+
+`accountWithRole('editor')` cans a listed account with the id, name
+and email `userWithRole('editor')` gives. It starts confirmed,
+editable and enabled. Its second argument holds the fields a test
+wants different, such as `{ confirmed: false }`. `usersOk(accounts)`
+lists those accounts and `usersFailure()` fails the list. `roleOk()`
+answers a role change with success and `disabledOk()` an Enable or a
+Disable. `roleRefused(code)` and `disabledRefused(code)` answer each
+with an error code, with the status and message the server sends for
+it. `resendDelivered()`, `resendUndelivered(link)` and
+`resendRefused(code)` answer a resent invitation.
 
 The canned handlers cover the outcomes tests most often need, from
 `loginOk` to `loginRateLimited`. The invitation and reset routes
