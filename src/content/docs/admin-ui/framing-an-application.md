@@ -172,7 +172,7 @@ may open it:
 const usersRow: MenuItem = {
 	label: 'Users',
 	to: '/users',
-	capability: 'users.manage',
+	capability: 'manage_users',
 	fallback: { label: 'API tokens', to: '/tokens' },
 }
 ```
