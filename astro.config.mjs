@@ -1,6 +1,8 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightLinksValidator from 'starlight-links-validator';
+import starlightLlmsTxt from 'starlight-llms-txt';
 
 // https://astro.build/config
 export default defineConfig({
@@ -16,6 +18,7 @@ export default defineConfig({
 			editLink: {
 				baseUrl: 'https://github.com/gopherium/docs/edit/main/',
 			},
+			plugins: [starlightLinksValidator({ sameSitePolicy: 'error' }), starlightLlmsTxt()],
 			sidebar: [
 				{
 					label: 'Start here',
@@ -78,6 +81,11 @@ export default defineConfig({
 						{ slug: 'admin-ui/loading-and-feedback' },
 						{ slug: 'admin-ui/testing' },
 						{ slug: 'admin-ui/build-and-versioning' },
+						{
+							label: 'Design System',
+							collapsed: true,
+							items: [{ autogenerate: { directory: 'admin-ui/design-system' } }],
+						},
 					],
 				},
 				{

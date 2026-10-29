@@ -3,16 +3,23 @@
 	"type": "module",
 	"version": "0.0.1",
 	"scripts": {
-		"dev": "astro dev",
-		"start": "astro dev",
-		"build": "astro build",
+		"dev": "node --env-file-if-exists=.env scripts/godmin-docs.mjs && astro dev",
+		"start": "node --env-file-if-exists=.env scripts/godmin-docs.mjs && astro dev",
+		"build": "node --env-file-if-exists=.env scripts/godmin-docs.mjs && astro build",
 		"preview": "astro preview",
-		"astro": "astro"
+		"astro": "astro",
+		"test": "node --test 'scripts/*.test.mjs'"
+	},
+	"config": {
+		"godmin": "0.29.1"
 	},
 	"dependencies": {
 		"@astrojs/starlight": "^0.41.3",
 		"astro": "^7.0.2",
-		"sharp": "^0.34.5"
+		"mdast-util-from-markdown": "2.0.3",
+		"sharp": "^0.34.5",
+		"starlight-links-validator": "0.25.3",
+		"starlight-llms-txt": "0.11.0"
 	},
 	"packageManager": "pnpm@12.2.1"
 }
