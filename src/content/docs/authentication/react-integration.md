@@ -21,8 +21,8 @@ It ships five entry points, so you take only the layers you want:
 `react` and `@tanstack/react-query` are peer dependencies, meaning
 your application installs them. The `/wpds` entry also expects
 `@wordpress/ui`, and `@wordpress/icons` 18.x for its Users row. The
-`/wpds/users` entry also expects `@gopherium/godmin` 0.28.x,
-`@gopherium/gottext` 0.6 or 0.7, `@wordpress/dataviews` 20.x,
+`/wpds/users` entry also expects `@gopherium/godmin` 0.28.x or
+0.29.x, `@gopherium/gottext` 0.6 or 0.7, `@wordpress/dataviews` 20.x,
 `@wordpress/components` 42.x and `@wordpress/date` 5.57 or a later
 5.x. It is an entry of its own, so an application that only signs
 people in never installs those.
