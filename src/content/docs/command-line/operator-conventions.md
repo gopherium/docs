@@ -119,3 +119,33 @@ The first Ctrl-C, or the SIGTERM a deployment sends, asks the
 command to stop. `serve` then gives running requests time to finish,
 as [Serving](/command-line/serving/) explains. A second Ctrl-C ends
 the program at once.
+
+## Processor and memory limits
+
+Go reads `GOMAXPROCS` and `GOMEMLIMIT` before your program starts, so
+a line for either in a `.env` file the program loads itself does
+nothing. Set `MYAPP_MAX_PROCS` and `MYAPP_MEMORY_LIMIT_MB` instead.
+`gonsole.Main` reads them before any command runs and hands them to
+Go:
+
+- `MYAPP_MAX_PROCS` is how many processors run Go code at once, from
+  1 to the number of CPUs. Go still starts a thread for each call
+  that waits on the system, so it lowers the thread count without
+  capping it.
+- `MYAPP_MEMORY_LIMIT_MB` is the memory in megabytes Go tries to stay
+  under, from 1 to 1073741824. It is a soft limit. Go collects
+  garbage harder as the program nears it, and a program that holds
+  more keeps running while the collector works almost without pause.
+  Set it well above what the program uses at rest.
+
+A setting you leave unset leaves Go its own default, which follows
+`GOMAXPROCS`, `GOMEMLIMIT` and the container's CPU quota. A set one
+only ever lowers what Go holds, so the tighter of the two wins. Once
+`MYAPP_MAX_PROCS` takes effect, Go no longer follows a change to the
+container's CPU quota while the program runs.
+
+`check` and `serve` exit 1 on a value out of range, such as
+`myapp: MYAPP_MAX_PROCS: must stand above zero, got "0"`. Every other
+command runs without the limits, so `version` and `help` still work.
+Call `gonsole.Main` after the program loads its `.env`, so the limits
+in that file reach Go.

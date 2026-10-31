@@ -67,6 +67,12 @@ do set must be above zero.
 `NewServer` sets no write timeout, so a response that keeps sending,
 such as an event stream, is never cut off.
 
+`serve` and `check` also read `MYAPP_MAX_PROCS` and
+`MYAPP_MEMORY_LIMIT_MB`, the processor and memory limits
+`gonsole.Main` hands to Go, which
+[processor and memory limits](/command-line/operator-conventions/#processor-and-memory-limits)
+explains.
+
 ## Where the server listens
 
 `Env.Listening` uses the first of these that is set: `MYAPP_SOCKET`, the
