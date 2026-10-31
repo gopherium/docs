@@ -49,20 +49,18 @@ it. Run a plain `PRAGMA optimize` from your own scheduled job.
 
 SQLite lets one connection write at a time. The other writers wait for
 its lock. A wait ends at once when the context of your call ends. That
-holds for a statement you prepared with `PrepareContext` too.
-
-A wait that starts while you read a later row of a query, or close its
-rows, does not end with the query's context. It ends after
-`BusyTimeout`. This is rare, for example a query that reads an attached
-file that does not use a write-ahead log.
+holds for a statement you prepared with `PrepareContext` too. A wait
+while you read the rows of a query, or close them, ends with the
+query's context. A wait in a commit ends with the context you gave
+`BeginTx`. On a share it ends with the context you gave `Begin`, or at
+the transaction timeout.
 
 A call stopped by its context returns an error that matches your
 context's error, `ctx.Err()`. When opening a connection answered busy
 before your context ended, the error also matches the class
 `dbkit.ErrBusy` once you pass it to
-[`sqlite.Classify`](/database/overview/#error-classes). So does a
-commit through `dbkit.InTx` or a share that answered busy after its
-context ended. Check with `errors.Is`, never with `==`.
+[`sqlite.Classify`](/database/overview/#error-classes). Check with
+`errors.Is`, never with `==`.
 
 A write can land in the instant before its deadline and still return
 the context error. So before you run a write again, check whether the
@@ -162,6 +160,19 @@ To restore a snapshot:
 statement or the next commit. Call `sqlitetest.CheckLibc` in one test,
 so a build that links another `modernc.org/libc` fails.
 
+## Upgrading from 0.3.0
+
+- A wait for a lock while you read a later row of a query, close its
+  rows or commit now ends with the context of the query or of
+  `BeginTx`. Its error, and so an `InTx` error from its commit, matches
+  only the context error, no longer `dbkit.ErrBusy`. Check the context
+  error with `errors.Is`.
+- A share's `Commit` that waits for a lock now stops at the transaction
+  timeout, or when the context you gave `Begin` ends. Its error matches
+  the context error, no longer `dbkit.ErrBusy`.
+- `modernc.org/sqlite` moves to v1.61.1. `modernc.org/libc` stays at
+  v1.79.0.
+
 ## Upgrading from 0.2.0
 
 - Move `modernc.org/libc` to v1.79.0 in your `go.mod`, or
@@ -172,8 +183,6 @@ so a build that links another `modernc.org/libc` fails.
 - A write behind another writer no longer tries the lock again every
   `BusyPoll`. It follows SQLite's own schedule, up to every 100ms.
   Change any test or doc that says otherwise.
-- A wait that starts while you read a later row of a query, or close
-  its rows, ends after `BusyTimeout`, not with the query's context.
 - `sql.Conn.Raw` hands out the driver's own connection again. The
   driver takes the connection's progress handler on each call whose
   context can end, so do not set one.
