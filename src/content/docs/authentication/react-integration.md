@@ -148,9 +148,10 @@ createRoute({
 
 `UsersPage` is a Users screen modelled on WordPress's, built on
 [DataViews](/admin-ui/lists/), the WordPress list component. It shows
-each account with its avatar, its email under its name, its status,
-its role and when it was created. A reader can search, filter by role
-or status, sort by name, email or date, and page through the accounts.
+each account with its avatar, its email under its name, its status
+and its role, newest first. View options can add when it was created.
+A reader can search, filter by role or status, sort by name, email or
+date, and page through the accounts.
 
 Your application keeps the view, meaning the search, the filters,
 the sort and the page, in its address with godmin's
@@ -185,7 +186,9 @@ Give the `/users` route `validateSearch: listSearch`, so a reload or
 a shared link opens the same view. The page needs godmin's
 [`Toaster`](/admin-ui/loading-and-feedback/#toasts) above it, and
 your application loads the `@wordpress/dataviews` and
-`@wordpress/components` stylesheets, as for any DataViews list.
+`@wordpress/components` stylesheets, as for any DataViews list, and
+`@gopherium/react-auth/wpds/style.css`, which clips a long email and
+sizes `RoleSelect` on a phone.
 
 Each row offers Change role…, Enable or Disable, and Resend
 invitation… on an account still waiting to activate. Change role,
@@ -211,7 +214,7 @@ Everything the page takes is data:
 | `list` | What godmin's `useListView` returns |
 | `pageSizes`, `sizesFailed` | The page sizes your settings offer, and whether the settings failed to load. When they fail, every account shows on one page |
 | `roleLabels` | The label of each role your application declares. A role with no label reads as its stored name with a capital first letter |
-| `errorMessages` | Words for error codes only your transport answers, keyed by code |
+| `errorMessages` | Words for error codes only your application answers, keyed by code. The codes can come from your transport or, since 0.17.0, from your own server through the REST calls |
 | `addLink` | The link element the "Add User" button goes in |
 | `tabs`, `headingLevel` | Tabs under the header, and the level of the title |
 | `showAvatars` | `false` when your site shows no avatars, so the page draws none |
@@ -365,6 +368,23 @@ const password = usePasswordField({ length: 24, userInputs: [name, email] })
   are, for example while the form is being sent.
 - `help` is a line under the field. The account step puts its line
   asking the person to store the password there.
+- `required` adds "(Required)" to the label, and the browser will not
+  send the form while the field is empty.
+- `customValidity` is a message about the password, in the shape
+  `ValidatedInputControl` from `@wordpress/ui` takes, such as
+  `{ type: 'invalid', message }`. Pass `undefined` for no message.
+
+A message shows under the field and its meter, in red with the warning
+icon, once the field is left, an `invalid` event fires or the form's
+`reportValidity()` runs. While it is `invalid` the field has
+`aria-invalid`, which tells a screen reader, and the browser will not
+send the form. When you set a message after a send, call the form's
+`reportValidity()` in a `useEffect` that runs after that render, so
+the message shows at once.
+
+An Add User form leaves `required` out, as WordPress's Add User shows
+no "(required)" by the password it always generates. It catches an
+empty password with `customValidity`, as it does for Email and Name.
 
 Send `password.value`. `password.ready` turns true once the field
 holds more than spaces and, for a weak password, the person has
