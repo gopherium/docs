@@ -27,6 +27,11 @@ your application installs them. The `/wpds` entry also expects
 5.x. It is an entry of its own, so an application that only signs
 people in never installs those.
 
+The `/testing` entry expects `msw` 3, `vitest` 5.0.4 or a later 5.x,
+`@testing-library/react` 16.3.2 or a later 16.x, and
+`@testing-library/jest-dom` 6.9.1 or a later 6.x, or 7.x. It loads by
+`import` only.
+
 ## The gate
 
 ```tsx
@@ -662,7 +667,7 @@ meaning no translator has reviewed them yet. They still show.
 Components behind a login are awkward to test, because every one of
 them wants a session and a backend. The `/testing` entry provides
 both. It runs a fake HTTP server, using
-[msw](https://mswjs.io/), and manages that server's setup and
+[msw](https://mswjs.io/) 3, and manages that server's setup and
 teardown for you:
 
 ```tsx
@@ -676,7 +681,17 @@ import {
 ```
 
 `installTestEnvironment()` starts and stops the server around your
-tests and cleans up the DOM between them.
+tests and cleans up the DOM between them. Call it once in your vitest
+setup file. A request no handler answers fails and is named on the
+console. After each test it waits two event loop turns, so a request
+still in flight can meet that test's handlers.
+
+It also puts Node's `File` and `FormData` on the global, so a `fetch`
+upload reaches its handler with its name and bytes. `Blob` and
+`FileReader` stay jsdom's. Under this harness `new FormData(form)`,
+which a React form action calls, and `FileReader` on a `File` throw a
+`TypeError`, `XMLHttpRequest` sends a form or a `File` as placeholder
+text, and a `File` does not mix with a `Blob`.
 
 `seedSession(client, user)` puts a signed-in user straight into the
 query cache, so a test can render a component behind the gate without
