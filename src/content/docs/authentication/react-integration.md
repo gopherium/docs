@@ -21,8 +21,8 @@ It ships five entry points, so you take only the layers you want:
 `react` and `@tanstack/react-query` are peer dependencies, meaning
 your application installs them. The `/wpds` entry also expects
 `@wordpress/ui`, and `@wordpress/icons` 18.x for its Users row. The
-`/wpds/users` entry also expects `@gopherium/godmin` 0.28.x or
-0.29.x, `@gopherium/gottext` 0.6 or 0.7, `@wordpress/dataviews` 20.x,
+`/wpds/users` entry also expects `@gopherium/godmin` 0.30.x,
+`@gopherium/gottext` 0.6 or 0.7, `@wordpress/dataviews` 20.x,
 `@wordpress/components` 42.x and `@wordpress/date` 5.57 or a later
 5.x. It is an entry of its own, so an application that only signs
 people in never installs those.
@@ -156,7 +156,9 @@ createRoute({
 each account with its avatar, its email under its name, its status
 and its role, newest first. View options can add when it was created.
 A reader can search, filter by role or status, sort by name, email or
-date, and page through the accounts.
+date, and page through the accounts. A list with no accounts says "No
+users yet" and offers the Add User link. A search or a filter that
+finds nobody shows godmin's "No results found".
 
 Your application keeps the view, meaning the search, the filters,
 the sort and the page, in its address with godmin's
@@ -210,7 +212,9 @@ accounts they touched. A toast about one account shows its full
 name, never cut short, as WordPress does. A refused write shows the
 sentence for the error code the server answered, WordPress's own
 wherever WordPress has one. For `user_not_editable` that is "Sorry,
-you are not allowed to edit this user."
+you are not allowed to edit this user." Change role shows its toast
+as the writes end, and when at least one worked, the list shows as
+reloading until the accounts come back.
 
 Everything the page takes is data:
 
@@ -661,6 +665,19 @@ or the package translates into a copy your application never loaded.
 Where WordPress already translates the same English, both catalogues
 use WordPress's words. The other translations are marked fuzzy,
 meaning no translator has reviewed them yet. They still show.
+
+The words of a search that finds nobody are godmin's, so the Users
+page shows them in English until your application loads godmin's
+catalogue too:
+
+```ts
+import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
+
+const chrome = await listChromeCatalogFor('es-ES')
+if (chrome !== undefined) {
+	setLocaleData(chrome, LIST_CHROME_DOMAIN)
+}
+```
 
 ## Testing components that authenticate
 
