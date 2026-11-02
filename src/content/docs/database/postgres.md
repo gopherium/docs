@@ -243,6 +243,81 @@ Go migrations come only from `Migrations.Go`, each built with
 `goose.NewGoMigration`. goose's global registry is ignored. Run the
 owners one after another, never one inside another.
 
+## Handing a database to a plain role
+
+A program that logs in to PostgreSQL as a superuser can run
+`COPY ... TO PROGRAM`, which runs programs on the database server. So
+a site should log in as a plain role that owns only its own database.
+
+`HandOver` moves a database to such a role. Call it on a connection
+that is a superuser, opened on the database you are moving:
+
+```go
+steps, err := postgres.HandOver(ctx, h.DB, postgres.Owner{
+	Role:     "site",
+	Password: password,
+})
+```
+
+It creates the role when it is missing, and makes sure the role can
+log in. Then it gives the role the database and its schemas, tables,
+views, sequences, functions, procedures and types. All of that runs in
+one transaction, so a failure changes nothing.
+
+PostgreSQL has a shorter statement for this, `REASSIGN OWNED`, but it
+refuses the built-in `postgres` role, which is why `HandOver` moves
+each object by itself.
+
+Some things stay where they are. What an extension installed keeps its
+owner, and so does anything outside the list above, such as a foreign
+server. Tables take their indexes and linked sequences with them. On
+PostgreSQL 15 and 16 the multirange type of a range type also keeps its
+owner, which changes nothing the role can do, since it can still use it
+and dropping the range type drops it too.
+
+You can run it again at any time. A second run finds nothing left to
+move and only sets the password. An empty `Password` leaves the
+password as it is.
+
+`steps` lists the statements it ran, and never holds the password. To
+show them before anything changes, call `OwnerSteps`, which reads the
+same list and changes nothing:
+
+```go
+steps, err := postgres.OwnerSteps(ctx, h.DB, "site")
+```
+
+Both refuse in three cases, each with an error you can match with
+`errors.Is`:
+
+- `ErrNotSuperuser` when the connection is not a superuser.
+- `ErrNotPlainRole` when the role you named can reach the database
+  server. That covers a superuser, a role that can create roles, and a
+  member of `pg_execute_server_program`, `pg_read_server_files` or
+  `pg_write_server_files`. It also covers a member of any of those,
+  directly or through another role. Refusing these keeps the point of
+  the move: such a role could still run programs or touch files on the
+  server.
+- `ErrRoleName` when the name is empty or longer than the server keeps,
+  which is 63 bytes on a standard server.
+
+To check a role that is already in use, call `ReachesServer` on its own
+connection. It needs no superuser, and it reads the same list
+`ErrNotPlainRole` uses, so a program can warn or stop at start:
+
+```go
+reaches, err := postgres.ReachesServer(ctx, h.DB)
+```
+
+It answers for the role the connection logged in as, even after
+`SET ROLE`, since that login could set it back. Only
+`SET SESSION AUTHORIZATION` moves the answer, and only a superuser can
+run it.
+
+The password reaches the server as text inside an `ALTER ROLE`
+statement. A server with `log_statement` set to `ddl` or `all`, or with
+`pg_stat_statements` tracking such statements, can record it.
+
 ## Shares on PostgreSQL
 
 Build each share on `h.DB` with `dbkit.Postgres`:
