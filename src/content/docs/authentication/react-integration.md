@@ -125,6 +125,36 @@ Import the stylesheet once:
 import '@gopherium/react-auth/wpds/style.css'
 ```
 
+### Links under a form
+
+Since 0.20.0, `LoginScreen`, `RequestResetScreen`,
+`ResetPasswordScreen` and `SetPasswordScreen` take `links`, the links
+to show centred under the form, as WordPress shows its privacy policy
+link. Each one is an `AuthLink`: its `label`, already in the reader's
+language, its full `href`, and an optional `rel`.
+
+```tsx
+import { LoginScreen } from '@gopherium/react-auth/wpds'
+import type { AuthLink } from '@gopherium/react-auth/wpds'
+
+const links: AuthLink[] = [
+	{ label: __('Privacy Policy'), href: 'https://example.com/privacy' },
+	{ label: __('Terms of Service'), href: 'https://example.com/terms' },
+]
+
+<LoginScreen brand="MyApp" links={links} onLogin={onLogin} />
+```
+
+The links stay on screen in every state, such as the message for a
+spent link. A bar separates them. With no `links`, the screen draws
+nothing there. The spacing and the centring come from the stylesheet
+above.
+
+Every link carries `rel="noopener noreferrer"`, and a `rel` of your
+own is added to those words. The address of a reset or an invitation
+screen holds a live token, and this keeps that address from reaching
+the site a reader goes to.
+
 ### The Users row
 
 `usersMenuItem` is a row of a godmin
