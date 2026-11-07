@@ -12,9 +12,10 @@ loaded at runtime, so the compiler checks every plugin and there is
 no dynamic loading to go wrong. Adding or removing a plugin means
 rebuilding.
 
-pluginkit ships three things: the host that starts and stops your
-plugins, the generator that wires them in, and the guard that
-protects their routes.
+pluginkit ships four things: the host that starts and stops your
+plugins, the generator that wires them in, the guard that protects
+their routes, and [hooks](/plugins/hooks/) that call every plugin
+implementing one interface.
 
 ## One required interface, four optional capabilities
 
