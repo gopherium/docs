@@ -29,7 +29,8 @@ Every plugin directory holds a `plugin.json` describing itself:
 | `graphql` | Set to `true` to [extend the GraphQL API](/plugins/graphql-plugins/) |
 
 `backend` and `frontend` are both optional on their own, but a
-plugin needs at least one of them.
+plugin needs at least one of them. A `screens` module, below, does
+not count as either.
 
 ### Data about the plugin
 
@@ -50,7 +51,10 @@ and the generated wiring reads none of them:
   "hooks": ["content.changed"],
   "defines": ["shop.order-placed"],
   "jobs": [{ "name": "forget-old", "every": "24h" }],
-  "settings": [{ "key": "max_seats", "type": "count", "default": "4", "min": 1 }]
+  "settings": [{ "key": "max_seats", "type": "count", "default": "4", "min": 1 }],
+  "menu": [{ "label": "Reservations", "screen": "reservations", "capability": "events.manage" }],
+  "screens": "@myapp/plugin-events/screens",
+  "screen_capabilities": { "seats": "events.manage" }
 }
 ```
 
@@ -70,11 +74,17 @@ of your application lets plugins run their own code.
 | `defines` | List of strings or objects | The hooks this plugin offers to others. An object needs `hook`, and can add `kind` to say whether it is an action or a filter, and `fires` to say when it fires, such as on a request or from a job. A plain string `"x"` means `{"hook": "x"}` |
 | `jobs` | List of objects | Scheduled jobs. Each one needs `name` and `every` |
 | `settings` | List of objects | The plugin's settings. Each one needs `key` and `type`, and can add `default`, `label` and `help` as strings, `min` and `max` as numbers, `options` as a list of strings with the answers of a choice setting, and `of` as a string naming the content type a picker setting offers |
+| `menu` | List of objects | Admin menu entries. Each one needs `label`, `screen` and `capability`, and can add `parent` and `icon` as strings and `position` as a whole number |
+| `screens` | String | The module your admin imports only when one of the plugin's screens opens, see [admin screens that load when opened](#admin-screens-that-load-when-opened) |
+| `screen_capabilities` | Object of strings | The capability each screen needs when no menu entry names it |
 
 `pluginkit` checks the shape of these keys and nothing more. It stops
 with an error naming the manifest when a key has the wrong JSON type,
 when a required key is missing or empty, or when a list holds an empty
-string. For example,
+string. A screen name must be one path segment, with no `/`. Two menu
+entries may open one screen only when they ask for the same capability,
+and `screen_capabilities` may not name a screen that a menu entry
+names, because that screen takes the entry's capability. For example,
 `pluginwire: plugins/events/plugin.json: jobs[0]: every is required`.
 A `null` counts as leaving the key out, and inside `requires` it reads
 as an empty range. What the values mean is up to your application.
@@ -118,7 +128,8 @@ func main() {
 ```
 
 `Run` reads every manifest and writes one Go file and one TypeScript
-file, plus the optional registry, dependency list and index described below.
+file, plus the optional registry, dependency list, screens map and index
+described below.
 `License` sets the SPDX header on the Go and TypeScript files, and
 `TSLicense`, when set, replaces it on the TypeScript file. Every field is on
 [pkg.go.dev](https://pkg.go.dev/github.com/gopherium/framework/pluginkit/wire).
@@ -204,18 +215,56 @@ pnpm only finds it when your app's `package.json` lists it. Set
 PackageJSONPath: "frontend/package.json",
 ```
 
-`Run` writes every plugin frontend under `dependencies` as
-`"workspace:*"`, sorted by name, and records the names it wrote under
-a top-level `pluginwire` key. On the next run it drops a recorded name
-that no manifest names any more. A dependency you add yourself is never
-touched, so leave the `pluginwire` key to the generator. Every other
-key keeps its place, and the file is written with tabs and a final
-newline. A missing or malformed `package.json` stops `Run` before it
-writes anything.
+`Run` writes every plugin frontend, and the package of every `screens`
+module, under `dependencies` as `"workspace:*"`, sorted by name, and
+records the names it wrote under a top-level `pluginwire` key. On the
+next run it drops a recorded name that no manifest names any more. A
+dependency you add yourself is never touched, so leave the `pluginwire`
+key to the generator. Every other key keeps its place, and the file is
+written with tabs and a final newline. A missing or malformed
+`package.json` stops `Run` before it writes anything.
 
 `Run` does not touch the lock file. Run `pnpm install` after you add
 or remove a plugin, and check that your pnpm workspace includes each
 plugin's frontend folder.
+
+### Admin screens that load when opened
+
+The generated TypeScript file imports every plugin's frontend as soon
+as your admin opens, so 200 plugins make that first download heavy. A
+plugin can name its admin screens in `screens` instead. That module's
+default export maps each screen name to the component that draws it.
+Set `TSScreensPath` and `Run` writes one more TypeScript file:
+
+```go
+TSScreensPath: "frontend/src/plugins/screens.ts",
+```
+
+The file maps each plugin that names `screens` to a function that
+imports that module, in wiring order:
+
+```ts
+export const screens: Readonly<Record<string, () => Promise<unknown>>> = {
+	"events": () => import("@myapp/plugin-events/screens"),
+}
+```
+
+Nothing downloads until your admin calls one of these functions, and a
+bundler such as Vite builds each plugin's screens into a file of its
+own. When no plugin names `screens`, the map is empty. A plugin can
+keep its `frontend` while it moves its screens, and both still load.
+
+With `PackageJSONPath` set, the package a `screens` module comes from,
+such as `@myapp/plugin-events` for `@myapp/plugin-events/screens`,
+joins the dependency list too. A `screens` value that names no package,
+such as `./screens`, then stops `Run` before it writes anything,
+because there is no package to list.
+
+Each menu entry names one screen of the module and the capability a
+person needs to see the entry and open its screen. A screen no menu
+entry names, such as a detail page opened from a button, takes the
+capability `screen_capabilities` names for it. Your admin should show
+no access on a screen that has neither.
 
 ### An index of every manifest
 
