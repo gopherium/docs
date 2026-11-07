@@ -128,8 +128,8 @@ func main() {
 ```
 
 `Run` reads every manifest and writes one Go file and one TypeScript
-file, plus the optional registry, dependency list, screens map and index
-described below.
+file, plus the optional registry, registration list, dependency list,
+screens map and index described below.
 `License` sets the SPDX header on the Go and TypeScript files, and
 `TSLicense`, when set, replaces it on the TypeScript file. Every field is on
 [pkg.go.dev](https://pkg.go.dev/github.com/gopherium/framework/pluginkit/wire).
@@ -376,3 +376,73 @@ that did, so nothing they built is left behind. On
 `gonsole.StopHost(ctx, host, stopGrace)` instead of `host.Stop(ctx)`.
 It gives the stop its own time limit. The plugins get a context that
 has not ended, even when `ctx` has.
+
+## Registering plugins one by one
+
+`registerPlugins` hands every plugin the same `Deps` and runs every
+`Register`, even for a plugin your admin has turned off. A `Register`
+that panics also takes the whole program down, because nothing
+catches the panic. Laravel and Django solve the first part with a list
+the application filters, `app.providers` and `INSTALLED_APPS`. The
+generator can write such a list for you. Set `RegistrationList`:
+
+```go
+RegistrationList: true,
+```
+
+The generated Go file then holds, in place of `registerPlugins`, a
+list of every backend plugin's id and `Register` function, in wiring
+order:
+
+```go
+var pluginRegistrations = []pluginKit.Registration[sdk.Deps, sdk.Plugin]{
+	{ID: "events", Register: func(deps sdk.Deps) (sdk.Plugin, error) {
+		plugin, err := events.Register(deps)
+		if err != nil {
+			return nil, err
+		}
+		return plugin, nil
+	}},
+}
+```
+
+The registry file holds the same list as `Registrations`, in place of
+`All`. Your server keeps the plugins it wants, builds each one's own
+`Deps` from its id, and passes both to `pluginkit.RegisterEach`.
+`enabled` stands for your own record of which plugins are on, and this
+program also imports `slices` and `log/slog`:
+
+```go
+wanted := slices.DeleteFunc(slices.Clone(pluginRegistrations),
+	func(entry pluginkit.Registration[sdk.Deps, sdk.Plugin]) bool { return !enabled[entry.ID] })
+outcome := pluginkit.RegisterEach(wanted, func(id string) sdk.Deps {
+	return sdk.Deps{DatabaseURL: url, Getenv: os.Getenv}
+})
+for _, failure := range outcome.Failed {
+	slog.Warn("a plugin did not register", "plugin", failure.ID, "error", failure.Err)
+}
+host := pluginkit.NewHost(outcome.Registered...)
+```
+
+`RegisterEach` calls each `Register` inside its own recover, so a
+plugin that panics or answers an error fails alone and the plugins
+after it still register. Each `Failure` names the plugin, the step
+`register`, and the error, and its `Panicked` field is true only for a
+recovered panic, as in
+[`StartEach`](/plugins/host-lifecycle/#starting-each-plugin-on-its-own). Store
+that failure if you want to keep the plugin paused until someone looks
+at it, the way WordPress pauses a plugin that crashed.
+
+Build each plugin's own values in the function you pass, such as a
+logger tagged with the plugin's id or the settings under its own
+prefix. That function runs outside the recover, so a panic there
+reaches your code, because it is a bug of your application, not of the
+plugin.
+
+`RegisterEach` only catches a panic in `Register` itself. A goroutine
+that `Register` starts is on its own.
+
+The list's entries take your SDK's `Plugin` type, whether it is an
+alias of `pluginkit.Plugin` or an interface your SDK declares. When it
+is your own interface, convert each plugin before you hand it to the
+host.
