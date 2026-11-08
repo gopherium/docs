@@ -21,7 +21,7 @@ It ships five entry points, so you take only the layers you want:
 `react` and `@tanstack/react-query` are peer dependencies, meaning
 your application installs them. The `/wpds` entry also expects
 `@wordpress/ui`, and `@wordpress/icons` 19.x for its Users row. The
-`/wpds/users` entry also expects `@gopherium/godmin` 0.31.x,
+`/wpds/users` entry also expects `@gopherium/godmin` 0.32.x,
 `@gopherium/gottext` 0.8.x, `@wordpress/dataviews` 21.x,
 `@wordpress/components` 43.x and `@wordpress/date` 6.x. It is an
 entry of its own, so an application that only signs people in never
@@ -237,14 +237,16 @@ rule decides what each reader sees. Change role also needs the
 session's `grantable` roles, and Enable needs the account's role among
 them.
 
-Change role, Enable and Disable report in one toast, however many
-accounts they touched. A toast about one account shows its full
-name, never cut short, as WordPress does. A refused write shows the
-sentence for the error code the server answered, WordPress's own
-wherever WordPress has one. For `user_not_editable` that is "Sorry,
-you are not allowed to edit this user." Change role shows its toast
-as the writes end, and when at least one worked, the list shows as
-reloading until the accounts come back.
+Change role stays open with a spinner until its writes end. When it
+acts on one account and the server refuses, it stays open and says
+why inside. Otherwise Change role, Enable and Disable report in one
+toast, however many accounts they touched. A toast about one account
+shows its full name, never cut short, as WordPress does. A refused
+write shows the sentence for the error code the server answered,
+WordPress's own wherever WordPress has one. For `user_not_editable`
+that is "Sorry, you are not allowed to edit this user." When at least
+one write worked, the list shows as reloading until the accounts come
+back.
 
 Everything the page takes is data:
 
@@ -450,8 +452,9 @@ address already had an account.
 
 Resend invitation… on the Users page opens a dialog that sends a new
 link to an account still waiting. The link sent before stops
-working. When the server has no mail set up, the dialog shows the
-new link for the administrator to deliver by hand. No released
+working. The dialog stays open while it sends, and says why inside
+when the send fails. When the server has no mail set up, the dialog
+shows the new link for the administrator to deliver by hand. No released
 `authkit` serves this call yet, as
 [the transport section](#talking-to-a-backend-that-is-not-rest) explains.
 
@@ -668,7 +671,10 @@ as a toast.
 
 `errorMessageOf(error, errorMessages, fallback)` from `/wpds/users`
 gives the words the Users page would show for that error, or
-`fallback` when there are none.
+`fallback` when there are none. For an Add User form, use
+`addUserErrorMessageOf` with the same arguments. It says "Sorry, you
+are not allowed to create users." to a reader who may no longer
+manage users, as WordPress's Add User screen does.
 
 ## Languages
 
@@ -696,9 +702,9 @@ Where WordPress already translates the same English, both catalogues
 use WordPress's words. The other translations are marked fuzzy,
 meaning no translator has reviewed them yet. They still show.
 
-The words of a search that finds nobody are godmin's, so the Users
-page shows them in English until your application loads godmin's
-catalogue too:
+The words of a search that finds nobody and the name of a dialog's
+close icon come from godmin, so the Users page shows them in English
+until your application loads godmin's catalogue too:
 
 ```ts
 import { LIST_CHROME_DOMAIN, listChromeCatalogFor } from '@gopherium/godmin'
