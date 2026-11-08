@@ -11,7 +11,7 @@
 		"test": "node --test 'scripts/*.test.mjs'"
 	},
 	"config": {
-		"godmin": "0.31.0"
+		"godmin": "0.32.0"
 	},
 	"dependencies": {
 		"@astrojs/starlight": "^0.41.3",
