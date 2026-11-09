@@ -31,15 +31,19 @@ console.log(`awaiting review: ${unreviewed(catalog).length}`)
 | --- | --- |
 | `untranslated` | Messages in the template with no translation yet |
 | `orphaned` | Translations for messages the template no longer names |
-| `mismatched` | Translations whose placeholders do not match the message |
+| `mismatched` | Translations whose placeholders or tags do not match the message |
 | `unreviewed` | Answers still carrying the fuzzy flag |
 
 `mismatched` is the one that prevents visible breakage. If the
 message is `Disable %(name)s` and the translation says `Disable %s`,
 the rendered sentence is wrong. It catches the reverse too, a
 translation naming `%(name)s` where the message carries a bare `%s`.
-It reads fuzzy answers like any other, so a machine translation that
-breaks a placeholder fails the gate before it ships.
+It checks tags the same way. Tags are markers like `<a>` that
+`createInterpolateElement` turns into links and other elements. A
+translation of `Read the <a>notes</a>` fails when it drops, adds,
+renames or repeats a tag. Moving a tag is fine. It reads fuzzy
+answers like any other, so a machine translation that breaks a
+placeholder or a tag fails the gate before it ships.
 
 `unreviewed` is different from its siblings. A fuzzy answer is
 answered, so `untranslated` does not list it, and it ships to
