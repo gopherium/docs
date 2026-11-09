@@ -38,9 +38,10 @@ clock follows the format locale too, so en-US writes 09:05 AM.
 `at` is a `Date` or the text a server stored. An empty string writes
 nothing. A bare calendar day, such as a due date stored as
 `2026-09-30`, writes that day for every reader, wherever they are. A
-full timestamp, such as `2026-09-01T03:00:00Z`, is a moment, so it
-shows in the reader's own time zone. For a reader in Los Angeles that
-one is still August 31.
+bare wall clock time, such as a due time stored as `09:30`, writes
+that time for every reader. A full timestamp, such as
+`2026-09-01T03:00:00Z`, is a moment, so it shows in the reader's own
+time zone. For a reader in Los Angeles that one is still August 31.
 
 `formatDate` takes the
 [`Intl.DateTimeFormatOptions`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
