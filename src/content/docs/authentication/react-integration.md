@@ -482,6 +482,11 @@ Pass `onForgotPassword` to your `LoginScreen` to render the way in.
 Each link works once and then expires. A spent or expired link shows
 "This link is no longer valid" with advice on getting a new one.
 
+When the server rejects the new password as too short or too long,
+both pages show the same translated words as Add User, with the
+shortest length allowed from `meta.min`. Any other rejected password
+shows the server's own words.
+
 ## Talking to a backend that is not REST
 
 By default the package calls authkit's REST endpoints directly, such
@@ -546,7 +551,7 @@ turns a wrong password into a crash instead of a form message.
 | `setUserDisabled` | Throw `UnauthorizedError` when the session is gone, and the errors [Roles in the admin functions](#roles-in-the-admin-functions) lists for it |
 | `invite` | Answer `{ delivered: true }` or `{ delivered: false, activation_link }`, the same shape whether the address is taken or fresh. Throw `ValidationError` for bad input, never `EmailTakenError` |
 | `resendInvite` | Answer the same shape as `invite`. Throw `UnauthorizedError`, `RateLimitedError`, `UserNotEditableError` for an account the reader may not edit, `ValidationError` for bad input |
-| `acceptInvite` | Return the signed-in user. Throw `InvalidTokenError` for a spent, expired or unknown link |
+| `acceptInvite` | Return the signed-in user. Throw `InvalidTokenError` for a spent, expired or unknown link, `ValidationError` for a rejected password |
 | `requestPasswordReset` | Answer nothing about the address. Throw `RateLimitedError` when the limiter refuses |
 | `resetPassword` | Throw `InvalidTokenError` for a dead link, `ValidationError` for a refused password |
 | `isSetupOpen` | Return `true` while the site has no account, `false` once it has one |
@@ -568,9 +573,10 @@ The setup steps show their own sentence for each error in the
 carry details the steps read. A `SetupCodeError` carries a `reason`:
 `invalid` for a wrong code, `expired` for a code past its lifetime,
 or `file` when the server cannot use the code file. A
-`ValidationError` from `createFirstAccount`, `createUser` or `invite`
-carries the server's `code` and `meta`. In your own transport, build
-it as `new ValidationError(message, { code, meta })`.
+`ValidationError` from `createFirstAccount`, `createUser`, `invite`,
+`acceptInvite` or `resetPassword` carries the server's `code` and
+`meta`. In your own transport, build it as
+`new ValidationError(message, { code, meta })`.
 
 The account step knows the codes `email_invalid`, `name_required`,
 `name_too_long`, `password_too_short` and `password_too_long`. For a
