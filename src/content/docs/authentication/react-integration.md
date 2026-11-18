@@ -20,10 +20,11 @@ It ships five entry points, so you take only the layers you want:
 
 `react` and `@tanstack/react-query` are peer dependencies, meaning
 your application installs them. The `/wpds` entry also expects
-`@wordpress/ui`, and `@wordpress/icons` 19.x for its Users row. The
-`/wpds/users` entry also expects `@gopherium/godmin` 0.32.x,
-`@gopherium/gottext` 0.8.x, `@wordpress/dataviews` 21.x,
-`@wordpress/components` 43.x and `@wordpress/date` 6.x. It is an
+`@wordpress/ui`, and `@wordpress/icons` 20.x for its Users row. The
+`/wpds/users` entry also expects `@gopherium/godmin` 0.33.x or 0.34.x,
+`@gopherium/gottext` 0.8.x, `@wordpress/dataviews` 22.x,
+`@wordpress/components` 44.x and `@wordpress/date` 6.1 or a later
+6.x. It is an
 entry of its own, so an application that only signs people in never
 installs those.
 
@@ -227,8 +228,8 @@ your application loads the `@wordpress/dataviews` and
 `@gopherium/react-auth/wpds/style.css`, which clips a long email and
 sizes `RoleSelect` on a phone.
 
-Each row offers Change role…, Enable or Disable, and Resend
-invitation… on an account still waiting to activate. Change role,
+Each row offers Change role, Enable or Disable, and Resend
+invitation on an account still waiting to activate. Change role,
 Enable and Disable also work on several ticked accounts from the bar
 under the list. A click on a name, or a tap on a phone row, opens
 Change role. The page never offers anything on the reader's own row,
@@ -237,9 +238,11 @@ rule decides what each reader sees. Change role also needs the
 session's `grantable` roles, and Enable needs the account's role among
 them.
 
-Change role stays open with a spinner until its writes end. When it
-acts on one account and the server refuses, it stays open and says
-why inside. Otherwise Change role, Enable and Disable report in one
+Change role stays open with a spinner until its writes end, or until
+the write time limit of godmin's `AdminRoot` runs out. Then it stops
+the request and shows WordPress's words for a write with no answer.
+When it acts on one account and the server refuses, it stays open and
+says why inside. Otherwise Change role, Enable and Disable report in one
 toast, however many accounts they touched. A toast about one account
 shows its full name, never cut short, as WordPress does. A refused
 write shows the sentence for the error code the server answered,
@@ -450,10 +453,10 @@ activation link instead. Show it read-only so the administrator can
 deliver it by hand. Either way the answer never reveals whether the
 address already had an account.
 
-Resend invitation… on the Users page opens a dialog that sends a new
+Resend invitation on the Users page opens a dialog that sends a new
 link to an account still waiting. The link sent before stops
 working. The dialog stays open while it sends, and says why inside
-when the send fails. When the server has no mail set up, the dialog
+when the send fails or godmin's write time limit runs out. When the server has no mail set up, the dialog
 shows the new link for the administrator to deliver by hand. No released
 `authkit` serves this call yet, as
 [the transport section](#talking-to-a-backend-that-is-not-rest) explains.
@@ -631,7 +634,9 @@ sends one, `avatar` is the address of its picture. `confirmed` and
 `editable` are required from 0.16.0, so the server must be `authkit`
 v0.24.0 or newer, or your transport must send both. `createUser`
 takes an optional `role` for the new account, and
-`setUserRole(id, role)` changes one.
+`setUserRole(id, role)` changes one. `setUserRole` and `resendInvite`
+take an optional last `signal` that stops the request, as `fetchUsers`
+does, and so do the same two methods of a transport of your own.
 
 `setUserRole` calls `PUT /api/users/{id}/role`.
 
